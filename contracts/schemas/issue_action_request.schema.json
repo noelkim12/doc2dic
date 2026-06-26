@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/issue_action_request.schema.json",
+  "title": "IssueActionRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["expectedVersion", "idempotencyKey"],
+  "properties": {
+    "expectedVersion": { "type": "integer", "minimum": 0 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "enum": ["resolve_as_existing_concept", "resolve_as_alias", "resolve_as_forbidden", "resolve_as_deprecated", "resolve_as_new_concept", "resolve_as_relation", "dismiss", "mark_failed"] },
+    "term": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "definition": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "conceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "variant": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "sourceConceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "targetConceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "relationType": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of"] }
+  }
+}

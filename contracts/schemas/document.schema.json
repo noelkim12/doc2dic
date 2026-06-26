@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/document.schema.json",
+  "title": "Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "path", "title", "contentHash", "mimeType", "chunkIds", "analyzedAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^doc_[A-Za-z0-9_-]+$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "contentHash": { "type": "string", "minLength": 16, "maxLength": 128 },
+    "mimeType": { "type": "string", "enum": ["text/markdown", "text/plain", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] },
+    "chunkIds": { "type": "array", "items": { "type": "string", "pattern": "^chunk_[A-Za-z0-9_-]+$" }, "uniqueItems": true },
+    "analyzedAt": { "type": "string", "format": "date-time" }
+  }
+}

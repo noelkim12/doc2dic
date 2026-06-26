@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/document_chunk.schema.json",
+  "title": "DocumentChunk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "documentId", "sectionTitle", "ordinal", "textPreview", "contentHash"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^chunk_[A-Za-z0-9_-]+$" },
+    "documentId": { "type": "string", "pattern": "^doc_[A-Za-z0-9_-]+$" },
+    "sectionTitle": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "ordinal": { "type": "integer", "minimum": 0 },
+    "textPreview": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "contentHash": { "type": "string", "minLength": 16, "maxLength": 128 }
+  }
+}

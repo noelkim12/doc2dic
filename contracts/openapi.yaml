@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: doc2dic Local API
+  version: 0.1.0
+  description: Wave 0 frozen contract surface for the local project API.
+servers:
+  - url: http://127.0.0.1:8765
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      responses:
+        "200":
+          description: Local server status.
+  /api/concepts:
+    get:
+      operationId: listConcepts
+      tags: [concepts]
+      responses:
+        "200":
+          description: Concepts in the current project glossary.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/concept.schema.json"
+    post:
+      operationId: createConcept
+      tags: [concepts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/concept.schema.json"
+      responses:
+        "201":
+          description: Created concept.
+  /api/concepts/{concept_id}:
+    get:
+      operationId: getConcept
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/ConceptId"
+      responses:
+        "200":
+          description: Concept detail.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/concept.schema.json"
+    patch:
+      operationId: patchConcept
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/ConceptId"
+      responses:
+        "200":
+          description: Updated concept.
+    delete:
+      operationId: deleteConcept
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/ConceptId"
+      responses:
+        "204":
+          description: Concept deleted.
+  /api/concepts/{concept_id}/variants:
+    post:
+      operationId: createTermVariant
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/ConceptId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/term_variant.schema.json"
+      responses:
+        "201":
+          description: Created term variant.
+  /api/variants/{variant_id}:
+    patch:
+      operationId: patchTermVariant
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/VariantId"
+      responses:
+        "200":
+          description: Updated term variant.
+    delete:
+      operationId: deleteTermVariant
+      tags: [concepts]
+      parameters:
+        - $ref: "#/components/parameters/VariantId"
+      responses:
+        "204":
+          description: Term variant deleted.
+  /api/documents/analyze-path:
+    post:
+      operationId: analyzeDocumentPath
+      tags: [documents]
+      responses:
+        "202":
+          description: Document analysis accepted.
+  /api/documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      responses:
+        "200":
+          description: Analyzed documents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/document.schema.json"
+  /api/documents/{document_id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200":
+          description: Document detail.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/document.schema.json"
+  /api/documents/{document_id}/occurrences:
+    get:
+      operationId: listDocumentOccurrences
+      tags: [documents]
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200":
+          description: Term occurrences for one document.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/term_occurrence.schema.json"
+  /api/issues:
+    get:
+      operationId: listIssues
+      tags: [issues]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, resolved, dismissed, failed]
+      responses:
+        "200":
+          description: Review issues.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/term_issue.schema.json"
+  /api/issues/{issue_id}:
+    get:
+      operationId: getIssue
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue detail.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/term_issue.schema.json"
+  /api/issues/{issue_id}/accept:
+    post:
+      operationId: acceptIssue
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue accepted for review action.
+          content: &issueActionResponse
+            application/json:
+              schema:
+                $ref: "./schemas/issue_action_payload.schema.json"
+      requestBody: &issueActionRequest
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/issue_action_request.schema.json"
+  /api/issues/{issue_id}/dismiss:
+    post:
+      operationId: dismissIssue
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue dismissed.
+          content: *issueActionResponse
+      requestBody: *issueActionRequest
+  /api/issues/{issue_id}/resolve-as-new-concept:
+    post:
+      operationId: resolveIssueAsNewConcept
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue resolved as a new concept.
+          content: *issueActionResponse
+      requestBody: *issueActionRequest
+  /api/issues/{issue_id}/resolve-as-alias:
+    post:
+      operationId: resolveIssueAsAlias
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue resolved as an alias.
+          content: *issueActionResponse
+      requestBody: *issueActionRequest
+  /api/issues/{issue_id}/resolve-as-forbidden:
+    post:
+      operationId: resolveIssueAsForbidden
+      tags: [issues]
+      parameters:
+        - $ref: "#/components/parameters/IssueId"
+      responses:
+        "200":
+          description: Issue resolved as a forbidden term.
+          content: *issueActionResponse
+      requestBody: *issueActionRequest
+  /api/search/concepts:
+    get:
+      operationId: searchConcepts
+      tags: [search]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching concepts.
+  /api/search/similar-concepts:
+    get:
+      operationId: searchSimilarConcepts
+      tags: [search]
+      parameters:
+        - name: text
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Semantically similar concepts.
+  /api/graphs/current:
+    get:
+      operationId: getCurrentGraph
+      tags: [graphs]
+      responses:
+        "200":
+          description: Current application graph.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/app_graph.schema.json"
+  /api/graphs/rebuild:
+    post:
+      operationId: rebuildGraph
+      tags: [graphs]
+      responses:
+        "202":
+          description: Graph rebuild accepted.
+  /api/graphs/snapshots:
+    get:
+      operationId: listGraphSnapshots
+      tags: [graphs]
+      responses:
+        "200":
+          description: Graph snapshots.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./schemas/graph_snapshot.schema.json"
+  /api/graphs/snapshots/{snapshot_id}:
+    get:
+      operationId: getGraphSnapshot
+      tags: [graphs]
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      responses:
+        "200":
+          description: Graph snapshot detail.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/graph_snapshot.schema.json"
+  /api/graphs/graphify/export:
+    post:
+      operationId: exportGraphifyProjection
+      tags: [graphs]
+      responses:
+        "200":
+          description: Graphify-compatible projection.
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/graphify_projection.schema.json"
+components:
+  parameters:
+    ConceptId:
+      name: concept_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^concept_[A-Za-z0-9_-]+$
+    VariantId:
+      name: variant_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^variant_[A-Za-z0-9_-]+$
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^doc_[A-Za-z0-9_-]+$
+    IssueId:
+      name: issue_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^issue_[A-Za-z0-9_-]+$
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^snapshot_[A-Za-z0-9_-]+$

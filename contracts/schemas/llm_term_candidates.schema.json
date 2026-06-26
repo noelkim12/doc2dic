@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/llm_term_candidates.schema.json",
+  "title": "LLMTermCandidatesOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidates"],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface", "definition", "term_type", "tags", "evidence", "confidence"],
+        "properties": {
+          "surface": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "definition": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "term_type": { "type": "string", "enum": ["mechanic", "resource", "state", "action", "stat", "entity", "rule", "ui-label", "lore", "unknown"] },
+          "tags": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["quote"],
+              "properties": {
+                "quote": { "type": "string", "minLength": 1, "maxLength": 600 },
+                "section_title": { "type": "string", "maxLength": 240 }
+              }
+            }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

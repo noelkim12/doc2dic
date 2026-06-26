@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/term_issue.schema.json",
+  "title": "TermIssue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "issueType", "status", "surface", "evidence", "createdAt", "version", "appliedIdempotencyKey"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^issue_[A-Za-z0-9_-]+$" },
+    "issueType": { "type": "string", "enum": ["unknown_term", "forbidden_term", "conflicting_definition", "alias_candidate", "graph_relation_candidate", "same_term_different_meaning", "same_meaning_different_term", "ambiguous_usage"] },
+    "status": { "type": "string", "enum": ["open", "resolved", "dismissed", "failed"] },
+    "surface": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "candidateConceptId": { "type": ["string", "null"], "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "targetConceptId": { "type": ["string", "null"], "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "issue_evidence.schema.json" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "resolvedAt": { "type": ["string", "null"], "format": "date-time" },
+    "version": { "type": "integer", "minimum": 0 },
+    "appliedIdempotencyKey": { "type": ["string", "null"], "minLength": 1 }
+  }
+}

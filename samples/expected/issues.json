@@ -1,0 +1,59 @@
+{
+  "fixture_version": 1,
+  "provider": "deterministic_mock",
+  "summary": {
+    "total": 2,
+    "counts_by_type": {
+      "same_term_different_meaning": 1,
+      "same_meaning_different_term": 1
+    }
+  },
+  "issues": [
+    {
+      "issue_id": "issue.same-term.stamina.combat-vs-entry",
+      "issue_type": "same_term_different_meaning",
+      "severity": "high",
+      "candidate_term": "스태미나",
+      "concept_ids": ["concept.combat_stamina", "concept.dungeon_entry_resource"],
+      "recommendation": "던전 입장 자원은 별도 concept으로 분리하고 preferred term을 피로도 또는 입장 피로도로 검토한다.",
+      "evidence": [
+        {
+          "document_id": "combat_core",
+          "path": "samples/docs/combat_core.md",
+          "quote": "스태미나는 회피와 강공격에 소모되는 전투 자원이다."
+        },
+        {
+          "document_id": "dungeon_draft",
+          "path": "samples/docs/dungeon_draft.md",
+          "quote": "스태미나는 던전에 입장할 때 1 소모되며 매일 오전 5시에 회복된다."
+        }
+      ]
+    },
+    {
+      "issue_id": "issue.same-meaning.entry-resource.stamina-fatigue",
+      "issue_type": "same_meaning_different_term",
+      "severity": "medium",
+      "candidate_term": "입장 피로도",
+      "concept_ids": ["concept.dungeon_entry_resource"],
+      "related_terms": ["스태미나", "입장 피로도"],
+      "recommendation": "던전 입장 자원 concept의 preferred term 또는 alias로 검토한다.",
+      "evidence": [
+        {
+          "document_id": "dungeon_draft",
+          "path": "samples/docs/dungeon_draft.md",
+          "quote": "스태미나는 던전에 입장할 때 1 소모되며 매일 오전 5시에 회복된다."
+        },
+        {
+          "document_id": "dungeon_draft",
+          "path": "samples/docs/dungeon_draft.md",
+          "quote": "입장 피로도가 부족하면 던전에 들어갈 수 없다."
+        },
+        {
+          "document_id": "ui_terms",
+          "path": "samples/docs/ui_terms.md",
+          "quote": "던전 로비의 입장 자원 라벨은 입장 피로도로 표기한다."
+        }
+      ]
+    }
+  ]
+}

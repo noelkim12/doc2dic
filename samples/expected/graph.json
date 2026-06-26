@@ -1,0 +1,66 @@
+{
+  "fixture_version": 1,
+  "provider": "deterministic_mock",
+  "graph": {
+    "nodes": [
+      {
+        "id": "concept.combat_stamina",
+        "label": "스태미나",
+        "kind": "concept",
+        "domain": "combat"
+      },
+      {
+        "id": "concept.dungeon_entry_resource",
+        "label": "입장 피로도",
+        "kind": "concept",
+        "domain": "dungeon_entry"
+      },
+      {
+        "id": "concept.hitstun",
+        "label": "경직",
+        "kind": "concept",
+        "domain": "combat"
+      },
+      {
+        "id": "concept.stun",
+        "label": "스턴",
+        "kind": "concept",
+        "domain": "combat"
+      },
+      {
+        "id": "term.stamina",
+        "label": "스태미나",
+        "kind": "term"
+      },
+      {
+        "id": "term.entry_fatigue",
+        "label": "입장 피로도",
+        "kind": "term"
+      }
+    ],
+    "edges": [
+      {
+        "source": "term.stamina",
+        "target": "concept.combat_stamina",
+        "kind": "preferred_term"
+      },
+      {
+        "source": "term.entry_fatigue",
+        "target": "concept.dungeon_entry_resource",
+        "kind": "preferred_term"
+      },
+      {
+        "source": "term.stamina",
+        "target": "concept.dungeon_entry_resource",
+        "kind": "conflicting_usage",
+        "issue_id": "issue.same-term.stamina.combat-vs-entry"
+      },
+      {
+        "source": "term.stamina",
+        "target": "term.entry_fatigue",
+        "kind": "same_meaning_candidate",
+        "issue_id": "issue.same-meaning.entry-resource.stamina-fatigue"
+      }
+    ]
+  }
+}

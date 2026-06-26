@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/app_graph.schema.json",
+  "title": "AppGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodes", "edges"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "nodeType"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "nodeType": { "type": "string", "enum": ["concept"] },
+          "termType": { "type": "string", "enum": ["mechanic", "resource", "state", "action", "stat", "entity", "rule", "ui-label", "lore", "unknown"] }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "target", "relation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^edge_[A-Za-z0-9_-]+$" },
+          "source": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+          "target": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+          "relation": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of"] }
+        }
+      }
+    }
+  }
+}

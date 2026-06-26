@@ -1,0 +1,73 @@
+{
+  "fixture_version": 1,
+  "provider": "deterministic_mock",
+  "description": "Hand-authored expected candidate extraction for MVP fixtures; produced without external model calls.",
+  "documents": [
+    {
+      "document_id": "combat_core",
+      "path": "samples/docs/combat_core.md",
+      "candidates": [
+        {
+          "term": "스태미나",
+          "concept_id": "concept.combat_stamina",
+          "category": "combat_resource",
+          "evidence_quote": "스태미나는 회피와 강공격에 소모되는 전투 자원이다."
+        },
+        {
+          "term": "경직",
+          "concept_id": "concept.hitstun",
+          "category": "combat_status",
+          "evidence_quote": "경직은 피격 직후 짧은 시간 동안 이동과 공격 입력이 제한되는 상태이다."
+        },
+        {
+          "term": "스턴",
+          "concept_id": "concept.stun",
+          "category": "combat_status",
+          "evidence_quote": "스턴은 강한 충격이 누적되면 발생하며, 2초 동안 모든 행동이 불가능한 상태이다."
+        }
+      ]
+    },
+    {
+      "document_id": "dungeon_draft",
+      "path": "samples/docs/dungeon_draft.md",
+      "candidates": [
+        {
+          "term": "스태미나",
+          "concept_id": "concept.dungeon_entry_resource",
+          "category": "entry_resource",
+          "evidence_quote": "스태미나는 던전에 입장할 때 1 소모되며 매일 오전 5시에 회복된다."
+        },
+        {
+          "term": "입장 피로도",
+          "concept_id": "concept.dungeon_entry_resource",
+          "category": "entry_resource",
+          "evidence_quote": "입장 피로도가 부족하면 던전에 들어갈 수 없다."
+        },
+        {
+          "term": "입장권",
+          "concept_id": "concept.entry_ticket",
+          "category": "inventory_item",
+          "evidence_quote": "입장권은 이벤트 던전에만 사용되며, 일반 던전의 입장 피로도를 대체하지 않는다."
+        }
+      ]
+    },
+    {
+      "document_id": "ui_terms",
+      "path": "samples/docs/ui_terms.md",
+      "candidates": [
+        {
+          "term": "스태미나",
+          "concept_id": "concept.combat_stamina",
+          "category": "ui_label",
+          "evidence_quote": "전투 HUD의 녹색 막대 라벨은 스태미나로 표기한다."
+        },
+        {
+          "term": "입장 피로도",
+          "concept_id": "concept.dungeon_entry_resource",
+          "category": "ui_label",
+          "evidence_quote": "던전 로비의 입장 자원 라벨은 입장 피로도로 표기한다."
+        }
+      ]
+    }
+  ]
+}

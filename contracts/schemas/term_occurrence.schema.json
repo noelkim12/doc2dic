@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/term_occurrence.schema.json",
+  "title": "TermOccurrence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "documentId", "chunkId", "surface", "offsetStart", "offsetEnd", "confidence"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^occ_[A-Za-z0-9_-]+$" },
+    "documentId": { "type": "string", "pattern": "^doc_[A-Za-z0-9_-]+$" },
+    "chunkId": { "type": "string", "pattern": "^chunk_[A-Za-z0-9_-]+$" },
+    "conceptId": { "type": ["string", "null"], "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "surface": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "offsetStart": { "type": "integer", "minimum": 0 },
+    "offsetEnd": { "type": "integer", "minimum": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

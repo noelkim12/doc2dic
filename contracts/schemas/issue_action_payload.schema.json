@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/issue_action_payload.schema.json",
+  "title": "IssueActionPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcome", "issue"],
+  "properties": {
+    "outcome": { "type": "string", "enum": ["applied", "already_applied"] },
+    "issue": { "$ref": "term_issue.schema.json" },
+    "conceptId": { "type": ["string", "null"], "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "variantId": { "type": ["string", "null"], "pattern": "^variant_[A-Za-z0-9_-]+$" },
+    "relationId": { "type": ["string", "null"] }
+  }
+}

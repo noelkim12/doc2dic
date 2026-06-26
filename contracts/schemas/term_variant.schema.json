@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/term_variant.schema.json",
+  "title": "TermVariant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "conceptId", "label", "variantType", "status", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^variant_[A-Za-z0-9_-]+$" },
+    "conceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "variantType": { "type": "string", "enum": ["primary", "alias", "forbidden", "deprecated", "abbreviation"] },
+    "status": { "type": "string", "enum": ["active", "deprecated", "forbidden"] },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

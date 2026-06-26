@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/llm_conflict_classification.schema.json",
+  "title": "LLMConflictClassification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["classification", "reason", "recommendation", "confidence"],
+  "properties": {
+    "classification": { "type": "string", "enum": ["same_concept", "alias_candidate", "same_term_different_meaning", "same_meaning_different_term", "new_concept", "ambiguous"] },
+    "target_concept_id": { "type": ["string", "null"], "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "recommendation": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

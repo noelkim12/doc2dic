@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/concept.schema.json",
+  "title": "Concept",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "primaryTerm", "definition", "termType", "status", "tags", "variants", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
+    "primaryTerm": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "definition": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "termType": { "type": "string", "enum": ["mechanic", "resource", "state", "action", "stat", "entity", "rule", "ui-label", "lore", "unknown"] },
+    "status": { "type": "string", "enum": ["active", "deprecated", "forbidden"] },
+    "tags": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
+    "variants": { "type": "array", "items": { "type": "string", "pattern": "^variant_[A-Za-z0-9_-]+$" }, "uniqueItems": true },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

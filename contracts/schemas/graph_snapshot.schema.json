@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/graph_snapshot.schema.json",
+  "title": "GraphSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "createdAt", "graph"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^snapshot_[A-Za-z0-9_-]+$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "graph": { "$ref": "app_graph.schema.json" }
+  }
+}

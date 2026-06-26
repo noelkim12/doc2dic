@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://doc2dic.local/schemas/graphify_projection.schema.json",
+  "title": "GraphifyProjection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["graph", "documents"],
+  "properties": {
+    "graph": { "$ref": "app_graph.schema.json" },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "title", "body"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "body": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        }
+      }
+    }
+  }
+}
