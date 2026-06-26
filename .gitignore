@@ -1,0 +1,72 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.tox/
+.nox/
+
+# Python packaging and build output
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and coverage output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Node and Vite output
+node_modules/
+**/node_modules/
+**/dist/
+**/.vite/
+**/*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Doc2Dic local project state
+.doc2dic/
+
+# Local tool state
+.codegraph/
+.history/
+.omo/*
+!.omo/evidence/
+!.omo/evidence/**
+!.omo/notepads/
+!.omo/notepads/parallel-implementation/
+!.omo/notepads/parallel-implementation/learnings.md
+!.omo/notepads/parallel-implementation/issues.md
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
