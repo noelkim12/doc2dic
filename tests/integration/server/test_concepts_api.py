@@ -1,0 +1,160 @@
+# pyright: basic
+"""Integration tests for concept API behavior."""
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
+
+import anyio
+from fastapi import FastAPI
+from starlette.types import Message, Scope
+
+from doc2dic.server.app import create_app
+
+
+@dataclass(frozen=True, slots=True)
+class ApiResponse:
+    """Minimal ASGI response captured from the local app."""
+
+    status_code: int
+    body: bytes
+
+    def json(self) -> dict[str, str] | dict[str, dict[str, str]] | list[dict[str, str]]:
+        """Decode the JSON response body."""
+        return cast(
+            "dict[str, str] | dict[str, dict[str, str]] | list[dict[str, str]]",
+            json.loads(self.body.decode("utf-8")),
+        )
+
+
+async def _request_app(
+    app: FastAPI,
+    method: str,
+    raw_path: str,
+    body: dict[str, str] | None = None,
+) -> ApiResponse:
+    path, _, query = raw_path.partition("?")
+    sent_request = False
+    messages: list[Message] = []
+    body_bytes = json.dumps(body or {}).encode("utf-8")
+
+    async def receive() -> Message:
+        nonlocal sent_request
+        if sent_request:
+            return {"type": "http.disconnect"}
+        sent_request = True
+        return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    scope: Scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method.upper(),
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": query.encode("ascii"),
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 50000),
+        "server": ("127.0.0.1", 8765),
+    }
+    await app(scope, receive, send)
+    return _response_from_messages(messages)
+
+
+def request_app(
+    app: FastAPI,
+    method: str,
+    path: str,
+    body: dict[str, str] | None = None,
+) -> ApiResponse:
+    """Call the FastAPI app through its ASGI surface without httpx."""
+    return anyio.run(_request_app, app, method, path, body)
+
+
+def test_concept_api_when_crud_flow_runs_returns_payloads(tmp_path: Path) -> None:
+    fastapi_app = create_app(project_root=tmp_path)
+
+    create_response = request_app(
+        fastapi_app,
+        "post",
+        "/api/concepts",
+        {
+            "primaryTerm": "Stamina",
+            "definition": "Resource spent to enter dungeons.",
+            "termType": "resource",
+        },
+    )
+    list_response = request_app(fastapi_app, "get", "/api/concepts?status=active")
+    show_response = request_app(fastapi_app, "get", "/api/concepts/concept_stamina")
+    patch_response = request_app(
+        fastapi_app,
+        "patch",
+        "/api/concepts/concept_stamina",
+        {"definition": "Action budget."},
+    )
+    variant_response = request_app(
+        fastapi_app,
+        "post",
+        "/api/concepts/concept_stamina/variants",
+        {"label": "STA", "variantType": "abbreviation"},
+    )
+    delete_response = request_app(
+        fastapi_app,
+        "delete",
+        "/api/concepts/concept_stamina",
+    )
+    create_body = cast("dict[str, str]", create_response.json())
+    list_body = cast("list[dict[str, str]]", list_response.json())
+    show_body = cast("dict[str, str]", show_response.json())
+    patch_body = cast("dict[str, str]", patch_response.json())
+    variant_body = cast("dict[str, str]", variant_response.json())
+
+    assert create_response.status_code == 201
+    assert create_body["id"] == "concept_stamina"
+    assert list_response.status_code == 200
+    assert list_body[0]["primaryTerm"] == "Stamina"
+    assert show_response.status_code == 200
+    assert show_body["termType"] == "resource"
+    assert patch_response.status_code == 200
+    assert patch_body["definition"] == "Action budget."
+    assert variant_response.status_code == 201
+    assert variant_body["id"] == "variant_sta"
+    assert delete_response.status_code == 204
+
+
+def test_concept_api_when_duplicate_variant_returns_conflict(tmp_path: Path) -> None:
+    fastapi_app = create_app(project_root=tmp_path)
+    _ = request_app(
+        fastapi_app,
+        "post",
+        "/api/concepts",
+        {"primaryTerm": "Health", "definition": "Hit points."},
+    )
+
+    response = request_app(
+        fastapi_app,
+        "post",
+        "/api/concepts/concept_health/variants",
+        {"label": "Health", "variantType": "alias"},
+    )
+
+    body = cast("dict[str, dict[str, str]]", response.json())
+
+    assert response.status_code == 409
+    assert body["error"]["code"] == "duplicate_term"
+
+
+def _response_from_messages(messages: list[Message]) -> ApiResponse:
+    status_code = 500
+    body_parts: list[bytes] = []
+    for message in messages:
+        if message["type"] == "http.response.start":
+            status_code = int(message["status"])
+        if message["type"] == "http.response.body":
+            body_parts.append(bytes(message.get("body", b"")))
+    return ApiResponse(status_code=status_code, body=b"".join(body_parts))
