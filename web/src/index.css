@@ -720,6 +720,28 @@ html, body, #root {
   }
 }
 
+/* ── Detail panels (right pane content) ── */
+
+.concept-detail-panel,
+.document-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.concept-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.concept-panel-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
 /* ── Document Viewer ── */
 
 .document-viewer { display: flex; flex-direction: column; gap: var(--space-md); }
