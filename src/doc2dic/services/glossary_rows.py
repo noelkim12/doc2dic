@@ -30,6 +30,7 @@ type ConceptParams = tuple[
     str,
     str,
     str | None,
+    str | None,
     str,
     str,
 ]
@@ -109,8 +110,8 @@ def upsert_concept_row(connection: sqlite3.Connection, concept: Concept) -> None
         insert into concepts(
           id, primary_term, definition, term_type, status, tags_json,
           variants_json, scope_note, non_goals_json, examples_json, owner,
-          created_at, updated_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          source_document, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         on conflict(id) do update set
           primary_term = excluded.primary_term,
           definition = excluded.definition,
@@ -118,6 +119,7 @@ def upsert_concept_row(connection: sqlite3.Connection, concept: Concept) -> None
           status = excluded.status,
           tags_json = excluded.tags_json,
           variants_json = excluded.variants_json,
+          source_document = excluded.source_document,
           updated_at = excluded.updated_at
         """,
         _concept_params(concept),
@@ -235,6 +237,7 @@ def _concept_params(concept: Concept) -> ConceptParams:
         canonical_json(concept.non_goals),
         canonical_json(concept.examples),
         concept.owner,
+        concept.source_document,
         concept.created_at,
         concept.updated_at,
     )

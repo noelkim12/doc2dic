@@ -37,6 +37,8 @@ class GraphEdge(BaseModel):
         "related_to",
         "depends_on",
         "part_of",
+        "derives_from",
+        "value_of",
     ]
 
 

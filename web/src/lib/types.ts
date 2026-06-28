@@ -38,7 +38,9 @@ export type GraphEdgeRelation =
   | "contradicts"
   | "related_to"
   | "depends_on"
-  | "part_of";
+  | "part_of"
+  | "derives_from"
+  | "value_of";
 
 export type Concept = {
   readonly id: string;

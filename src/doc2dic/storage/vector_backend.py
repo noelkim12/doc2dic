@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from types import ModuleType
 from typing import Protocol, cast
 
-from doc2dic.storage.sqlite_rows import float_cell, int_cell
+from doc2dic.storage.sqlite_rows import float_cell, int_cell, text_cell
 from doc2dic.storage.vector_types import StoredVector, VectorBackendUnavailableError
 
 
@@ -82,5 +82,77 @@ def _sqlite_vec_module(module: ModuleType) -> SqliteVecModule:
     return cast("SqliteVecModule", cast("object", module))
 
 
+class JsonVectorBackend:
+    """SQLite JSON vector backend that works without optional extensions."""
+
+    def load(self, connection: sqlite3.Connection) -> None:
+        """Use the built-in SQLite table shape without loading extensions."""
+        del connection
+
+    def create_table(self, connection: sqlite3.Connection, dimension: int) -> None:
+        """Create the migration-compatible vector table."""
+        del dimension
+        _ = connection.execute("drop table if exists embedding_vectors")
+        _ = connection.execute(
+            """
+            create table embedding_vectors(
+              embedding_id integer primary key
+                references embeddings(id) on delete cascade,
+              vector_json text not null
+            )
+            """,
+        )
+
+    def upsert_vector(
+        self,
+        connection: sqlite3.Connection,
+        vector: StoredVector,
+    ) -> None:
+        """Insert or replace a migration-compatible vector row."""
+        _ = connection.execute(
+            """
+            insert or replace into embedding_vectors(embedding_id, vector_json)
+            values (?, ?)
+            """,
+            (vector.embedding_id, _vector_json(vector.values)),
+        )
+
+    def query_top_k(
+        self,
+        connection: sqlite3.Connection,
+        vector: Sequence[float],
+        top_k: int,
+    ) -> tuple[tuple[int, float], ...]:
+        """Run exact nearest-neighbor search over locally stored JSON vectors."""
+        rows = cast(
+            "list[sqlite3.Row]",
+            connection.execute(
+                "select embedding_id, vector_json from embedding_vectors",
+            ).fetchall(),
+        )
+        matches = tuple(
+            (
+                int_cell(row, "embedding_id"),
+                _distance(_decode_vector(text_cell(row, "vector_json")), vector),
+            )
+            for row in rows
+        )
+        return tuple(sorted(matches, key=lambda item: item[1])[:top_k])
+
+
 def _vector_json(vector: Sequence[float]) -> str:
     return "[" + ",".join(str(float(value)) for value in vector) + "]"
+
+
+def _decode_vector(encoded: str) -> tuple[float, ...]:
+    body = encoded.removeprefix("[").removesuffix("]")
+    if body == "":
+        return ()
+    return tuple(float(part) for part in body.split(","))
+
+
+def _distance(left: Sequence[float], right: Sequence[float]) -> float:
+    return sum(
+        (left_value - right_value) ** 2
+        for left_value, right_value in zip(left, right, strict=True)
+    )

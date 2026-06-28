@@ -53,6 +53,7 @@ def test_serve_help_exposes_mcp_and_path_options() -> None:
     assert result.exit_code == 0
     assert "--mcp" in result.output
     assert "--path" in result.output
+    assert "web" in result.output
 
 
 def test_serve_mcp_when_path_missing_returns_actionable_error(tmp_path: Path) -> None:
@@ -96,3 +97,44 @@ def test_serve_mcp_launches_stdio_server_for_project_path(
     assert result.exit_code == 0
     assert project_roots == [tmp_path.resolve()]
     assert call_events == ["stdio"]
+
+
+def test_serve_web_launches_api_and_frontend_for_project_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: the web command is isolated behind a test seam.
+    runner = CliRunner()
+    launched_configs: list[serve_command.WebServeConfig] = []
+
+    def launch_fake_web(config: serve_command.WebServeConfig) -> int:
+        launched_configs.append(config)
+        return 0
+
+    monkeypatch.setattr(serve_command, "run_web_server", launch_fake_web)
+
+    # When: the CLI launch path is invoked.
+    result = runner.invoke(app, ["serve", "web", "--path", str(tmp_path)])
+
+    # Then: the command resolves the project path and uses default ports.
+    assert result.exit_code == 0
+    assert launched_configs == [
+        serve_command.WebServeConfig(
+            project_root=tmp_path.resolve(),
+            web_port=5173,
+        ),
+    ]
+
+
+def test_serve_web_when_path_missing_returns_actionable_error(tmp_path: Path) -> None:
+    # Given: a path argument points at no project directory.
+    missing_path = tmp_path / "missing"
+    runner = CliRunner()
+
+    # When: web serving is requested for that path.
+    result = runner.invoke(app, ["serve", "web", "--path", str(missing_path)])
+
+    # Then: the CLI exits quickly with a doc2dic-specific correction.
+    assert result.exit_code == 1
+    assert "Project path does not exist" in result.output
+    assert "doc2dic serve web --path" in result.output

@@ -34,6 +34,7 @@ class CreateConceptInput:
     definition: str
     term_type: ConceptTermType
     tags: tuple[str, ...] = ()
+    source_document: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +46,7 @@ class UpdateConceptInput:
     term_type: ConceptTermType | None = None
     status: ConceptStatus | None = None
     tags: tuple[str, ...] | None = None
+    source_document: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

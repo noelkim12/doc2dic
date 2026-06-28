@@ -2,15 +2,19 @@
 """Integration tests for concept API behavior."""
 
 import json
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 import anyio
+import pytest
 from fastapi import FastAPI
 from starlette.types import Message, Scope
 
 from doc2dic.server.app import create_app
+from doc2dic.storage import open_database
+from doc2dic.storage.sqlite_rows import int_cell, require_row
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +80,11 @@ def request_app(
     return anyio.run(_request_app, app, method, path, body)
 
 
-def test_concept_api_when_crud_flow_runs_returns_payloads(tmp_path: Path) -> None:
+def test_concept_api_when_crud_flow_runs_returns_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
     fastapi_app = create_app(project_root=tmp_path)
 
     create_response = request_app(
@@ -89,33 +97,34 @@ def test_concept_api_when_crud_flow_runs_returns_payloads(tmp_path: Path) -> Non
             "termType": "resource",
         },
     )
+    create_body = cast("dict[str, str]", create_response.json())
+    concept_id = create_body["id"]
     list_response = request_app(fastapi_app, "get", "/api/concepts?status=active")
-    show_response = request_app(fastapi_app, "get", "/api/concepts/concept_stamina")
+    show_response = request_app(fastapi_app, "get", f"/api/concepts/{concept_id}")
     patch_response = request_app(
         fastapi_app,
         "patch",
-        "/api/concepts/concept_stamina",
+        f"/api/concepts/{concept_id}",
         {"definition": "Action budget."},
     )
     variant_response = request_app(
         fastapi_app,
         "post",
-        "/api/concepts/concept_stamina/variants",
+        f"/api/concepts/{concept_id}/variants",
         {"label": "STA", "variantType": "abbreviation"},
     )
     delete_response = request_app(
         fastapi_app,
         "delete",
-        "/api/concepts/concept_stamina",
+        f"/api/concepts/{concept_id}",
     )
-    create_body = cast("dict[str, str]", create_response.json())
     list_body = cast("list[dict[str, str]]", list_response.json())
     show_body = cast("dict[str, str]", show_response.json())
     patch_body = cast("dict[str, str]", patch_response.json())
     variant_body = cast("dict[str, str]", variant_response.json())
 
     assert create_response.status_code == 201
-    assert create_body["id"] == "concept_stamina"
+    assert concept_id.startswith("concept_")
     assert list_response.status_code == 200
     assert list_body[0]["primaryTerm"] == "Stamina"
     assert show_response.status_code == 200
@@ -123,23 +132,31 @@ def test_concept_api_when_crud_flow_runs_returns_payloads(tmp_path: Path) -> Non
     assert patch_response.status_code == 200
     assert patch_body["definition"] == "Action budget."
     assert variant_response.status_code == 201
-    assert variant_body["id"] == "variant_sta"
+    assert variant_body["id"].startswith("variant_")
     assert delete_response.status_code == 204
+    with open_database(tmp_path / ".doc2dic" / "glossary.sqlite3") as connection:
+        assert _table_count(connection, "embeddings") >= 1
+        assert _table_count(connection, "embedding_vectors") >= 1
 
 
-def test_concept_api_when_duplicate_variant_returns_conflict(tmp_path: Path) -> None:
+def test_concept_api_when_duplicate_variant_returns_conflict(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
     fastapi_app = create_app(project_root=tmp_path)
-    _ = request_app(
+    create_response = request_app(
         fastapi_app,
         "post",
         "/api/concepts",
         {"primaryTerm": "Health", "definition": "Hit points."},
     )
+    create_body = cast("dict[str, str]", create_response.json())
 
     response = request_app(
         fastapi_app,
         "post",
-        "/api/concepts/concept_health/variants",
+        f"/api/concepts/{create_body['id']}/variants",
         {"label": "Health", "variantType": "alias"},
     )
 
@@ -158,3 +175,16 @@ def _response_from_messages(messages: list[Message]) -> ApiResponse:
         if message["type"] == "http.response.body":
             body_parts.append(bytes(message.get("body", b"")))
     return ApiResponse(status_code=status_code, body=b"".join(body_parts))
+
+
+def _table_count(
+    connection: sqlite3.Connection,
+    table_name: Literal["embeddings", "embedding_vectors"],
+) -> int:
+    match table_name:
+        case "embeddings":
+            sql = "select count(*) as count from embeddings"
+        case "embedding_vectors":
+            sql = "select count(*) as count from embedding_vectors"
+    row = cast("sqlite3.Row | None", connection.execute(sql).fetchone())
+    return int_cell(require_row(row), "count")

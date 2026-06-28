@@ -135,15 +135,8 @@ def test_contract_routes_return_501_schema_when_called(tmp_path: Path) -> None:
     routes = (
         ("patch", "/api/variants/variant_dash"),
         ("delete", "/api/variants/variant_dash"),
-        ("post", "/api/documents/analyze-path"),
-        ("get", "/api/documents"),
-        ("get", "/api/documents/doc_design"),
-        ("get", "/api/documents/doc_design/occurrences"),
         ("get", "/api/search/concepts?q=dash"),
         ("get", "/api/search/similar-concepts?text=dash"),
-        ("post", "/api/graphs/rebuild"),
-        ("get", "/api/graphs/snapshots"),
-        ("get", "/api/graphs/snapshots/snapshot_current"),
     )
 
     for method, path in routes:

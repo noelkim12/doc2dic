@@ -6,6 +6,7 @@ from doc2dic.commands import (
     analyze,
     check,
     concept,
+    config,
     graph,
     init,
     install,
@@ -24,6 +25,7 @@ app = typer.Typer(
 
 app.add_typer(init.app, name="init")
 app.add_typer(status.app, name="status")
+app.add_typer(config.app, name="config")
 app.add_typer(concept.app, name="concept")
 app.add_typer(variant.app, name="variant")
 app.add_typer(review.app, name="review")

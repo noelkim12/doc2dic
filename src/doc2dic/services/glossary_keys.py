@@ -3,6 +3,7 @@
 import re
 from hashlib import sha256
 from typing import Final
+from uuid import uuid4
 
 from doc2dic.services.glossary_models import CreateRelationInput
 
@@ -23,6 +24,11 @@ def prefixed_id(prefix: str, label: str) -> str:
     slug = SLUG_PATTERN.sub("_", label.casefold()).strip("_")
     base = slug or sha256(label.encode("utf-8")).hexdigest()[:10]
     return f"{prefix}_{base}"
+
+
+def generated_prefixed_id(prefix: str) -> str:
+    """Return a contract-compatible opaque id for authoritative records."""
+    return f"{prefix}_{uuid4().hex}"
 
 
 def relation_id(command: CreateRelationInput) -> str:

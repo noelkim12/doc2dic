@@ -53,6 +53,7 @@ def _create_v1_database(db_path: Path) -> None:
         _ = connection.execute("drop table if exists document_search_fts")
         _ = connection.execute("drop table if exists issue_search_fts")
         _ = connection.execute("drop table if exists evidence_search_fts")
+        _ = connection.execute("alter table concepts drop column source_document")
         connection.commit()
 
 
@@ -62,6 +63,7 @@ def _create_v2_database(db_path: Path) -> None:
         _ = connection.execute("delete from schema_migrations where version > 2")
         _ = connection.execute("drop table if exists issue_search_fts")
         _ = connection.execute("drop table if exists evidence_search_fts")
+        _ = connection.execute("alter table concepts drop column source_document")
         connection.commit()
 
 
@@ -88,7 +90,7 @@ def test_migrations_when_run_twice_are_idempotent_and_enable_wal(
         )
         settings_count = int_cell(require_row(settings_row), "settings_count")
 
-    assert first.applied_versions == (1, 2, 3)
+    assert first.applied_versions == (1, 2, 3, 4)
     assert second.applied_versions == ()
     assert {
         "concepts",
@@ -128,9 +130,9 @@ def test_migrations_when_fresh_database_created_apply_latest_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 3
-    assert result.applied_versions == (1, 2, 3)
-    assert versions == [1, 2, 3]
+    assert result.current_version == 4
+    assert result.applied_versions == (1, 2, 3, 4)
+    assert versions == [1, 2, 3, 4]
     assert SEARCH_TABLES.issubset(tables)
 
 
@@ -146,9 +148,9 @@ def test_migrations_when_v1_database_exists_upgrade_to_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 3
-    assert result.applied_versions == (2, 3)
-    assert versions == [1, 2, 3]
+    assert result.current_version == 4
+    assert result.applied_versions == (2, 3, 4)
+    assert versions == [1, 2, 3, 4]
     assert SEARCH_TABLES.issubset(tables)
 
 
@@ -164,10 +166,75 @@ def test_migrations_when_v2_database_exists_upgrade_to_issue_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 3
-    assert result.applied_versions == (3,)
-    assert versions == [1, 2, 3]
+    assert result.current_version == 4
+    assert result.applied_versions == (3, 4)
+    assert versions == [1, 2, 3, 4]
     assert SEARCH_TABLES.issubset(tables)
+
+
+def _concept_columns(connection: "sqlite3.Connection") -> set[str]:
+    rows = cast(
+        "list[sqlite3.Row]",
+        connection.execute("pragma table_info(concepts)").fetchall(),
+    )
+    return {text_cell(row, "name") for row in rows}
+
+
+def test_migrations_when_fresh_database_created_add_source_document_column(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        columns = _concept_columns(connection)
+
+    assert "source_document" in columns
+
+
+def test_migrations_when_v2_database_exists_upgrade_adds_source_document(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _create_v2_database(db_path)
+
+    result = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        columns = _concept_columns(connection)
+
+    assert result.current_version == 4
+    assert "source_document" in columns
+
+
+def test_open_database_upgrades_existing_old_schema_on_access(tmp_path: Path) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+    # Simulate an older on-disk spec missing the v4 source_document column.
+    with open_database(db_path) as connection:
+        _ = connection.execute("alter table concepts drop column source_document")
+        _ = connection.execute("delete from schema_migrations where version = 4")
+        connection.commit()
+
+    # Opening the existing database auto-migrates it back to the latest schema.
+    with open_database(db_path) as connection:
+        columns = _concept_columns(connection)
+        versions = _migration_versions(connection)
+
+    assert "source_document" in columns
+    assert versions == [1, 2, 3, 4]
+
+
+def test_open_database_does_not_create_a_missing_project_schema(tmp_path: Path) -> None:
+    db_path = tmp_path / "missing.sqlite3"
+
+    # Opening a non-existent path must not run migrations (no schema seeded).
+    with open_database(db_path) as connection:
+        tables = _table_names(connection)
+
+    assert "schema_migrations" not in tables
+    assert "concepts" not in tables
 
 
 def test_migrations_when_checksum_changes_raise_corrupt_error(tmp_path: Path) -> None:

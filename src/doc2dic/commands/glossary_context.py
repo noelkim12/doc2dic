@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from doc2dic.commands.project_state import ProjectNotFoundError, discover_project
+from doc2dic.services.glossary_embeddings import ProjectGlossaryEmbeddingIndexer
 from doc2dic.services.glossary_service import GlossaryError, GlossaryService
 from doc2dic.storage import open_database
 
@@ -34,7 +35,10 @@ class GlossaryServiceContext:
         except ProjectNotFoundError as error:
             typer.echo(str(error))
             raise typer.Exit(code=1) from error
-        return GlossaryService(self._connection)
+        return GlossaryService(
+            self._connection,
+            ProjectGlossaryEmbeddingIndexer(self._connection),
+        )
 
     def __exit__(
         self,

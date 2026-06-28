@@ -31,8 +31,8 @@ class ConceptRepository:
                 insert into concepts(
                   id, primary_term, definition, term_type, status, tags_json,
                   variants_json, scope_note, non_goals_json, examples_json, owner,
-                  created_at, updated_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  source_document, created_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 on conflict(id) do update set
                   primary_term = excluded.primary_term,
                   definition = excluded.definition,
@@ -44,6 +44,7 @@ class ConceptRepository:
                   non_goals_json = excluded.non_goals_json,
                   examples_json = excluded.examples_json,
                   owner = excluded.owner,
+                  source_document = excluded.source_document,
                   updated_at = excluded.updated_at
                 """,
                 (
@@ -58,6 +59,7 @@ class ConceptRepository:
                     canonical_json(concept.non_goals),
                     canonical_json(concept.examples),
                     concept.owner,
+                    concept.source_document,
                     concept.created_at,
                     concept.updated_at,
                 ),
@@ -88,6 +90,7 @@ class ConceptRepository:
             non_goals=tuple_from_json_text(text_cell(row, "non_goals_json")),
             examples=tuple_from_json_text(text_cell(row, "examples_json")),
             owner=optional_text_cell(row, "owner"),
+            source_document=optional_text_cell(row, "source_document"),
         )
 
     def upsert_variant(self, variant: TermVariant) -> None:

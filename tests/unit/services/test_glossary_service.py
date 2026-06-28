@@ -40,7 +40,9 @@ def test_create_concept_when_valid_persists_primary_variant_and_tags(
         variants = service.list_variants(concept.id)
         tags = service.list_tags()
 
-    assert concept.id == "concept_stamina"
+    assert concept.id.startswith("concept_")
+    assert variants[0].id.startswith("variant_")
+    assert concept.variant_ids == (variants[0].id,)
     assert concept.tags == ("combat", "resource")
     assert variants[0].normalized_label == "stamina"
     assert variants[0].variant_type.value == "primary"
@@ -112,8 +114,31 @@ def test_add_variant_when_alias_is_unique_attaches_to_concept(tmp_path: Path) ->
         )
         refreshed = service.get_concept(concept.id)
 
-    assert variant.id == "variant_hp"
-    assert refreshed.variant_ids == ("variant_health", "variant_hp")
+    assert variant.id.startswith("variant_")
+    assert refreshed.variant_ids == (concept.variant_ids[0], variant.id)
+
+
+def test_add_variant_when_korean_alias_shares_ascii_suffix_gets_distinct_id(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        service = GlossaryService(connection)
+        hp = service.create_concept(
+            CreateConceptInput("HP", "Hit points.", ConceptTermType.STAT),
+        )
+        max_hp = service.create_concept(
+            CreateConceptInput("Max HP", "Maximum hit points.", ConceptTermType.STAT),
+        )
+        variant = service.add_variant(
+            CreateVariantInput(max_hp.id, "최대 HP", TermVariantType.ALIAS),
+        )
+
+    assert variant.id.startswith("variant_")
+    assert variant.id not in hp.variant_ids
+    assert variant.normalized_label == "최대 hp"
 
 
 def test_add_variant_when_primary_duplicate_rolls_back(tmp_path: Path) -> None:
@@ -136,7 +161,7 @@ def test_add_variant_when_primary_duplicate_rolls_back(tmp_path: Path) -> None:
             )
 
         assert _count(connection, "term_variants") == 1
-        assert service.get_concept(concept.id).variant_ids == ("variant_energy",)
+        assert service.get_concept(concept.id).variant_ids == concept.variant_ids
 
 
 def test_add_relation_when_target_exists_persists_relation(tmp_path: Path) -> None:
@@ -176,6 +201,58 @@ def test_add_relation_when_target_invalid_rolls_back(tmp_path: Path) -> None:
             )
 
         assert _count(connection, "concept_relations") == 0
+
+
+def test_create_concept_when_source_given_persists_source_document(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        service = GlossaryService(connection)
+        created = service.create_concept(
+            CreateConceptInput(
+                primary_term="Posture",
+                definition="Combat stance state.",
+                term_type=ConceptTermType.STATE,
+                source_document="  docs/battle/posture.md  ",
+            ),
+        )
+        fetched = service.get_concept(created.id)
+
+    assert created.source_document == "docs/battle/posture.md"
+    assert fetched.source_document == "docs/battle/posture.md"
+
+
+def test_update_concept_changes_source_but_preserves_when_omitted(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        service = GlossaryService(connection)
+        created = service.create_concept(
+            CreateConceptInput(
+                primary_term="Posture",
+                definition="Combat stance state.",
+                term_type=ConceptTermType.STATE,
+                source_document="docs/old.md",
+            ),
+        )
+        changed = service.update_concept(
+            created.id,
+            UpdateConceptInput(source_document="docs/new.md"),
+        )
+        preserved = service.update_concept(
+            created.id,
+            UpdateConceptInput(definition="Updated definition."),
+        )
+
+    assert changed.source_document == "docs/new.md"
+    assert preserved.source_document == "docs/new.md"
+    assert preserved.definition == "Updated definition."
 
 
 def _count(

@@ -64,7 +64,7 @@ def test_resolve_new_concept_when_replayed_is_idempotent(tmp_path: Path) -> None
 
         assert first.outcome == "applied"
         assert first.concept is not None
-        assert first.concept.id == "concept_energy"
+        assert first.concept.id.startswith("concept_")
         assert replay.outcome == "already_applied"
         assert _count(connection, "concepts") == 1
         assert _count(connection, "term_variants") == 1

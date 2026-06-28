@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from typer.testing import CliRunner
@@ -18,6 +18,7 @@ def test_concept_commands_when_used_through_cli_manage_lifecycle(
 ) -> None:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
 
     init_result = runner.invoke(app, ["init"])
     add_result = runner.invoke(
@@ -34,24 +35,28 @@ def test_concept_commands_when_used_through_cli_manage_lifecycle(
             "combat",
         ],
     )
+    concept_id = _created_id(add_result.output, "Created concept")
+    with open_database(tmp_path / ".doc2dic" / "glossary.sqlite3") as connection:
+        assert _table_count(connection, "embeddings") == 1
+        assert _table_count(connection, "embedding_vectors") == 1
     list_result = runner.invoke(app, ["concept", "list", "--tag", "combat"])
-    show_result = runner.invoke(app, ["concept", "show", "concept_stamina"])
+    show_result = runner.invoke(app, ["concept", "show", concept_id])
     edit_result = runner.invoke(
         app,
-        ["concept", "edit", "concept_stamina", "--definition", "Action budget."],
+        ["concept", "edit", concept_id, "--definition", "Action budget."],
     )
-    deprecate_result = runner.invoke(app, ["concept", "deprecate", "concept_stamina"])
+    deprecate_result = runner.invoke(app, ["concept", "deprecate", concept_id])
 
     assert init_result.exit_code == 0
     assert add_result.exit_code == 0
-    assert "Created concept: concept_stamina" in add_result.output
+    assert concept_id.startswith("concept_")
     assert list_result.exit_code == 0
-    assert "concept_stamina\tactive\tStamina" in list_result.output
+    assert f"{concept_id}\tactive\tStamina" in list_result.output
     assert show_result.exit_code == 0
     assert "Primary term: Stamina" in show_result.output
     assert edit_result.exit_code == 0
     assert deprecate_result.exit_code == 0
-    assert "Deprecated concept: concept_stamina" in deprecate_result.output
+    assert f"Deprecated concept: {concept_id}" in deprecate_result.output
 
 
 def test_variant_and_relation_commands_when_targets_exist_create_rows(
@@ -60,20 +65,23 @@ def test_variant_and_relation_commands_when_targets_exist_create_rows(
 ) -> None:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
 
     init_result = runner.invoke(app, ["init"])
     source_result = runner.invoke(
         app,
         ["concept", "add", "Health", "--definition", "Hit points."],
     )
+    source_id = _created_id(source_result.output, "Created concept")
     target_result = runner.invoke(
         app,
         ["concept", "add", "Damage", "--definition", "Health reduction."],
     )
+    target_id = _created_id(target_result.output, "Created concept")
 
     variant_result = runner.invoke(
         app,
-        ["variant", "add", "concept_health", "HP", "--type", "abbreviation"],
+        ["variant", "add", source_id, "HP", "--type", "abbreviation"],
     )
     relation_result = runner.invoke(
         app,
@@ -81,8 +89,8 @@ def test_variant_and_relation_commands_when_targets_exist_create_rows(
             "concept",
             "relation",
             "add",
-            "concept_health",
-            "concept_damage",
+            source_id,
+            target_id,
             "--type",
             "related_to",
         ],
@@ -92,9 +100,12 @@ def test_variant_and_relation_commands_when_targets_exist_create_rows(
     assert source_result.exit_code == 0
     assert target_result.exit_code == 0
     assert variant_result.exit_code == 0
-    assert "Created variant: variant_hp" in variant_result.output
+    assert _created_id(variant_result.output, "Created variant").startswith("variant_")
     assert relation_result.exit_code == 0
     assert "Created relation: relation_" in relation_result.output
+    with open_database(tmp_path / ".doc2dic" / "glossary.sqlite3") as connection:
+        assert _table_count(connection, "embeddings") == 2
+        assert _table_count(connection, "embedding_vectors") == 2
 
 
 def test_relation_command_when_same_source_and_target_returns_concise_error(
@@ -103,16 +114,18 @@ def test_relation_command_when_same_source_and_target_returns_concise_error(
 ) -> None:
     runner = CliRunner()
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
 
     init_result = runner.invoke(app, ["init"])
     concept_result = runner.invoke(
         app,
         ["concept", "add", "Health", "--definition", "Hit points."],
     )
+    concept_id = _created_id(concept_result.output, "Created concept")
 
     relation_result = runner.invoke(
         app,
-        ["concept", "relation", "add", "concept_health", "concept_health"],
+        ["concept", "relation", "add", concept_id, concept_id],
     )
 
     assert init_result.exit_code == 0
@@ -125,10 +138,26 @@ def test_relation_command_when_same_source_and_target_returns_concise_error(
 
 
 def _relation_count(connection: "sqlite3.Connection") -> int:
+    return _table_count(connection, "concept_relations")
+
+
+def _table_count(
+    connection: "sqlite3.Connection",
+    table_name: Literal["concept_relations", "embeddings", "embedding_vectors"],
+) -> int:
+    match table_name:
+        case "concept_relations":
+            sql = "select count(*) as count from concept_relations"
+        case "embeddings":
+            sql = "select count(*) as count from embeddings"
+        case "embedding_vectors":
+            sql = "select count(*) as count from embedding_vectors"
     row = cast(
         "sqlite3.Row | None",
-        connection.execute(
-            "select count(*) as count from concept_relations",
-        ).fetchone(),
+        connection.execute(sql).fetchone(),
     )
     return int_cell(require_row(row), "count")
+
+
+def _created_id(output: str, label: str) -> str:
+    return output.removeprefix(f"{label}: ").strip()

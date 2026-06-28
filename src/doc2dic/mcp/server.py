@@ -5,8 +5,19 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from doc2dic.mcp.instructions import SERVER_INSTRUCTIONS, SERVER_NAME
-from doc2dic.mcp.registry import DEFAULT_TOOL_NAME, STATUS_TOOL_NAME, active_tool_names
-from doc2dic.mcp.tools import run_doc2dic_explore, run_doc2dic_status
+from doc2dic.mcp.registry import (
+    ANALYZE_TOOL_NAME,
+    DEFAULT_TOOL_NAME,
+    STATUS_TOOL_NAME,
+    SUGGEST_TAGS_TOOL_NAME,
+    active_tool_names,
+)
+from doc2dic.mcp.tools import (
+    run_doc2dic_analyze,
+    run_doc2dic_explore,
+    run_doc2dic_status,
+    run_doc2dic_suggest_tags,
+)
 
 
 class ListedTool(Protocol):
@@ -88,6 +99,34 @@ def _register_enabled_tools(
             return run_doc2dic_explore(query, project_path or default_project_root)
 
         _ = doc2dic_explore
+
+    if ANALYZE_TOOL_NAME in enabled_names:
+
+        @server.tool(
+            name=ANALYZE_TOOL_NAME,
+            description="Hidden legacy local analysis for glossary candidates.",
+        )
+        def doc2dic_analyze(
+            document_path: str,
+            project_path: str | None = None,
+        ) -> str:
+            return run_doc2dic_analyze(
+                document_path,
+                project_path or default_project_root,
+            )
+
+        _ = doc2dic_analyze
+
+    if SUGGEST_TAGS_TOOL_NAME in enabled_names:
+
+        @server.tool(
+            name=SUGGEST_TAGS_TOOL_NAME,
+            description="Suggest existing glossary tags before saving a term.",
+        )
+        def doc2dic_suggest_tags(query: str, project_path: str | None = None) -> str:
+            return run_doc2dic_suggest_tags(query, project_path or default_project_root)
+
+        _ = doc2dic_suggest_tags
 
     if STATUS_TOOL_NAME in enabled_names:
 

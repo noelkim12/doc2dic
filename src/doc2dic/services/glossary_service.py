@@ -1,9 +1,10 @@
 """Storage-backed glossary concept, variant, tag, and relation service."""
 
-import sqlite3
+from __future__ import annotations
+
 from contextlib import nullcontext
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from doc2dic.domain import (
     Concept,
@@ -16,9 +17,9 @@ from doc2dic.domain import (
     TermVariantType,
 )
 from doc2dic.services.glossary_keys import (
+    generated_prefixed_id,
     normalize_label,
     normalize_tags,
-    prefixed_id,
     relation_id,
 )
 from doc2dic.services.glossary_models import (
@@ -46,7 +47,18 @@ from doc2dic.services.glossary_rows import (
 )
 
 if TYPE_CHECKING:
+    import sqlite3
     from contextlib import AbstractContextManager
+
+    from doc2dic.services.embedding_index import ConceptEmbeddingIndexResult
+
+
+class GlossaryEmbeddingIndexer(Protocol):
+    """Capability for refreshing glossary concept embeddings after mutations."""
+
+    def index_active_concepts(self) -> ConceptEmbeddingIndexResult:
+        """Backfill or refresh embeddings for active concepts."""
+        ...
 
 __all__ = [
     "CreateConceptInput",
@@ -66,17 +78,25 @@ __all__ = [
 class GlossaryService:
     """Coordinate glossary mutations behind one SQLite transaction boundary."""
 
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(
+        self,
+        connection: sqlite3.Connection,
+        embedding_indexer: GlossaryEmbeddingIndexer | None = None,
+    ) -> None:
         """Store the SQLite connection for this service instance."""
         self._connection: sqlite3.Connection
         self._connection = connection
+        self._embedding_indexer: GlossaryEmbeddingIndexer | None
+        self._embedding_indexer = embedding_indexer
+        self.last_embedding_index_result: ConceptEmbeddingIndexResult | None
+        self.last_embedding_index_result = None
 
     def create_concept(self, command: CreateConceptInput) -> Concept:
         """Create a concept and its primary variant."""
         now = _now()
         normalized = normalize_label(command.primary_term)
-        concept_id = prefixed_id("concept", normalized)
-        variant_id = prefixed_id("variant", normalized)
+        concept_id = generated_prefixed_id("concept")
+        variant_id = generated_prefixed_id("variant")
         concept = Concept(
             id=concept_id,
             primary_term=command.primary_term.strip(),
@@ -87,6 +107,7 @@ class GlossaryService:
             variant_ids=(variant_id,),
             created_at=now,
             updated_at=now,
+            source_document=_clean_optional(command.source_document),
         )
         variant = TermVariant(
             id=variant_id,
@@ -102,6 +123,7 @@ class GlossaryService:
             upsert_concept_row(self._connection, concept)
             insert_variant_row(self._connection, variant)
             replace_concept_tags(self._connection, concept.id, concept.tags)
+        self._refresh_embeddings()
         return concept
 
     def list_concepts(
@@ -129,6 +151,11 @@ class GlossaryService:
         tags = (
             normalize_tags(command.tags) if command.tags is not None else current.tags
         )
+        source_document = (
+            _clean_optional(command.source_document)
+            if command.source_document is not None
+            else current.source_document
+        )
         updated = current.model_copy(
             update={
                 "primary_term": primary_term,
@@ -136,6 +163,7 @@ class GlossaryService:
                 "term_type": command.term_type or current.term_type,
                 "status": command.status or current.status,
                 "tags": tags,
+                "source_document": source_document,
                 "updated_at": _now(),
             },
         )
@@ -144,6 +172,7 @@ class GlossaryService:
                 ensure_label_available(self._connection, normalize_label(primary_term))
             upsert_concept_row(self._connection, updated)
             replace_concept_tags(self._connection, updated.id, updated.tags)
+        self._refresh_embeddings()
         return updated
 
     def deprecate_concept(self, concept_id: str) -> Concept:
@@ -167,7 +196,7 @@ class GlossaryService:
         concept = self.get_concept(command.concept_id)
         normalized = normalize_label(command.label)
         variant = TermVariant(
-            id=prefixed_id("variant", normalized),
+            id=generated_prefixed_id("variant"),
             concept_id=command.concept_id,
             label=command.label.strip(),
             normalized_label=normalized,
@@ -187,6 +216,7 @@ class GlossaryService:
                 self._connection,
                 concept.model_copy(update={"variant_ids": variant_ids}),
             )
+        self._refresh_embeddings()
         return variant
 
     def add_relation(self, command: CreateRelationInput) -> ConceptRelation:
@@ -224,16 +254,30 @@ class GlossaryService:
             message = f"relation target not found: {command.target_concept_id}"
             raise InvalidRelationTargetError(message)
 
-    def _transaction(self) -> "AbstractContextManager[sqlite3.Connection | None]":
+    def _transaction(self) -> AbstractContextManager[sqlite3.Connection | None]:
         if self._connection.in_transaction:
             return nullcontext()
         return self._connection
+
+    def _refresh_embeddings(self) -> None:
+        if self._embedding_indexer is None:
+            return
+        self.last_embedding_index_result = (
+            self._embedding_indexer.index_active_concepts()
+        )
 
 
 def _updated_text(candidate: str | None, fallback: str) -> str:
     if candidate:
         return candidate.strip()
     return fallback
+
+
+def _clean_optional(candidate: str | None) -> str | None:
+    if candidate is None:
+        return None
+    stripped = candidate.strip()
+    return stripped or None
 
 
 def _now() -> str:

@@ -42,18 +42,9 @@ def test_issue_api_when_resolve_new_concept_replayed_has_no_duplicates(
 
     list_response = request_app(fastapi_app, "get", "/api/issues?status=open")
     show_response = request_app(fastapi_app, "get", "/api/issues/issue_energy")
-    first_response = request_app(
-        fastapi_app,
-        "post",
-        "/api/issues/issue_energy/resolve-as-new-concept",
-        body,
-    )
-    replay_response = request_app(
-        fastapi_app,
-        "post",
-        "/api/issues/issue_energy/resolve-as-new-concept",
-        body,
-    )
+    action_path = "/api/issues/issue_energy/resolve-as-new-concept"
+    first_response = request_app(fastapi_app, "post", action_path, body)
+    replay_response = request_app(fastapi_app, "post", action_path, body)
 
     first_body = cast("dict[str, object]", json.loads(first_response.body))
     replay_body = cast("dict[str, object]", json.loads(replay_response.body))
@@ -66,7 +57,7 @@ def test_issue_api_when_resolve_new_concept_replayed_has_no_duplicates(
     assert show_body["version"] == 0
     assert first_response.status_code == 200
     assert first_body["outcome"] == "applied"
-    assert first_body["conceptId"] == "concept_energy"
+    assert cast("str", first_body["conceptId"]).startswith("concept_")
     assert cast("dict[str, object]", first_body["issue"])["version"] == 1
     assert (
         cast("dict[str, object]", first_body["issue"])["appliedIdempotencyKey"]
@@ -83,7 +74,7 @@ def test_issue_api_when_alias_forbidden_and_dismiss_run_return_action_payloads(
     tmp_path: Path,
 ) -> None:
     fastapi_app = create_app(project_root=tmp_path)
-    _seed_concept(tmp_path, "Health", "Hit points.")
+    concept_id = _seed_concept(tmp_path, "Health", "Hit points.")
     _seed_issue(tmp_path, "issue_hp", "HP")
     _seed_issue(tmp_path, "issue_life", "Life")
     _seed_issue(tmp_path, "issue_noise", "Noise")
@@ -95,7 +86,7 @@ def test_issue_api_when_alias_forbidden_and_dismiss_run_return_action_payloads(
         {
             "expectedVersion": 0,
             "idempotencyKey": "api-alias-1",
-            "conceptId": "concept_health",
+            "conceptId": concept_id,
             "variant": "HP",
         },
     )
@@ -106,7 +97,7 @@ def test_issue_api_when_alias_forbidden_and_dismiss_run_return_action_payloads(
         {
             "expectedVersion": 0,
             "idempotencyKey": "api-forbidden-1",
-            "conceptId": "concept_health",
+            "conceptId": concept_id,
             "variant": "Life",
         },
     )
@@ -126,10 +117,10 @@ def test_issue_api_when_alias_forbidden_and_dismiss_run_return_action_payloads(
     dismiss_body = cast("dict[str, object]", json.loads(dismiss_response.body))
 
     assert alias_response.status_code == 200
-    assert alias_body["variantId"] == "variant_hp"
+    assert cast("str", alias_body["variantId"]).startswith("variant_")
     assert alias_body["outcome"] == "applied"
     assert forbidden_response.status_code == 200
-    assert forbidden_body["variantId"] == "variant_life"
+    assert cast("str", forbidden_body["variantId"]).startswith("variant_")
     assert forbidden_body["outcome"] == "applied"
     assert dismiss_response.status_code == 200
     assert dismiss_body["outcome"] == "applied"
@@ -224,11 +215,12 @@ def _response_from_messages(messages: list[Message]) -> ApiResponse:
     return ApiResponse(status_code=status_code, body=b"".join(body_parts))
 
 
-def _seed_concept(tmp_path: Path, term: str, definition: str) -> None:
+def _seed_concept(tmp_path: Path, term: str, definition: str) -> str:
     with open_database(tmp_path / ".doc2dic" / "glossary.sqlite3") as connection:
-        _ = GlossaryService(connection).create_concept(
+        concept = GlossaryService(connection).create_concept(
             CreateConceptInput(term, definition, ConceptTermType.UNKNOWN),
         )
+    return concept.id
 
 
 def _seed_issue(tmp_path: Path, issue_id: str, surface: str) -> None:

@@ -76,6 +76,7 @@ def _concept_card(connection: sqlite3.Connection, concept_id: str) -> ConceptCar
         definition=text_cell(required, "definition"),
         status=text_cell(required, "status"),
         variants=_variant_groups(connection, concept_id),
+        source_document=optional_text_cell(required, "source_document"),
     )
 
 

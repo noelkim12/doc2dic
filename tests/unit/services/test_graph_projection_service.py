@@ -55,6 +55,8 @@ def test_current_graph_when_fixture_db_projected_contains_expected_nodes_and_edg
         ("concept_combat_stamina", "alias_of", "concept_combat_stamina"),
         ("concept_combat_stamina", "contradicts", "concept_entry_stamina"),
         ("concept_combat_stamina", "depends_on", "concept_dodge_roll"),
+        ("concept_dodge_roll", "derives_from", "concept_combat_stamina"),
+        ("concept_entry_stamina", "value_of", "concept_combat_stamina"),
     ]
 
 
@@ -120,19 +122,37 @@ def seed_graph_fixture(connection: "sqlite3.Connection") -> None:
     document_repository.upsert_document(_document())
     document_repository.upsert_chunk(_chunk())
     issue_repository.upsert_issue(_issue())
-    _ = connection.execute(
+    _ = connection.executemany(
         """
         insert into concept_relations(
           id, source_concept_id, target_concept_id, relation_type, confidence, status
         ) values (?, ?, ?, ?, ?, ?)
         """,
         (
-            "relation_combat_stamina_depends_on_dodge",
-            "concept_combat_stamina",
-            "concept_dodge_roll",
-            "depends_on",
-            1.0,
-            "approved",
+            (
+                "relation_combat_stamina_depends_on_dodge",
+                "concept_combat_stamina",
+                "concept_dodge_roll",
+                "depends_on",
+                1.0,
+                "approved",
+            ),
+            (
+                "relation_dodge_derives_from_stamina",
+                "concept_dodge_roll",
+                "concept_combat_stamina",
+                "derives_from",
+                1.0,
+                "approved",
+            ),
+            (
+                "relation_entry_value_of_stamina",
+                "concept_entry_stamina",
+                "concept_combat_stamina",
+                "value_of",
+                1.0,
+                "approved",
+            ),
         ),
     )
     connection.commit()

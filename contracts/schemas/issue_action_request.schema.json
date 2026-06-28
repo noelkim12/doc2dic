@@ -16,6 +16,6 @@
     "reason": { "type": "string", "minLength": 1, "maxLength": 400 },
     "sourceConceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
     "targetConceptId": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
-    "relationType": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of"] }
+    "relationType": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of", "derives_from", "value_of"] }
   }
 }

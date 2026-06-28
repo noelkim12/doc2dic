@@ -73,6 +73,7 @@ class Concept(BaseModel):
     non_goals: tuple[str, ...] = Field(default_factory=tuple)
     examples: tuple[str, ...] = Field(default_factory=tuple)
     owner: str | None = None
+    source_document: str | None = Field(default=None, max_length=512)
 
 
 class TermVariant(BaseModel):

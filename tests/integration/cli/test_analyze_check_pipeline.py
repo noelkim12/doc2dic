@@ -15,6 +15,11 @@ from doc2dic.domain import (
     TermVariantType,
 )
 from doc2dic.services.document_normalization import normalize_term_text
+from doc2dic.services.embedding_service import (
+    DeterministicMockEmbeddingProvider,
+    EmbeddingProviderConfig,
+)
+from doc2dic.services.embedding_voyage import VoyageEmbeddingProvider
 from doc2dic.storage import open_database
 from doc2dic.storage.repositories.concepts import ConceptRepository
 from doc2dic.storage.sqlite_rows import int_cell, require_row, text_cell
@@ -86,6 +91,49 @@ def test_check_write_issues_when_enhanced_runs_provider_pipeline(
     assert occurrence_count >= 4
     assert counts["same_term_different_meaning"] >= 1
     assert counts["same_meaning_different_term"] >= 1
+
+
+def test_analyze_when_voyage_configured_uses_project_model_with_fake_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    created_models: list[str] = []
+    fake_key = "sk-test-doc2dic-voyage-secret"
+
+    def fake_from_config(
+        _provider_type: type[VoyageEmbeddingProvider],
+        config: EmbeddingProviderConfig,
+    ) -> DeterministicMockEmbeddingProvider:
+        created_models.append(config.model)
+        return DeterministicMockEmbeddingProvider(model=config.model)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_API_KEY", fake_key)
+    monkeypatch.setattr(
+        VoyageEmbeddingProvider,
+        "from_config",
+        classmethod(fake_from_config),
+    )
+    init_result = runner.invoke(app, ["init"])
+    config_result = runner.invoke(
+        app,
+        ["config", "embedding", "use", "voyage", "--model", "voyage-test-model"],
+    )
+    _seed_glossary(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["analyze", str(ROOT / "samples" / "docs" / "dungeon_draft.md")],
+    )
+
+    assert init_result.exit_code == 0
+    assert config_result.exit_code == 0
+    assert result.exit_code == 0
+    assert created_models == ["voyage-test-model"]
+    assert "Provider: deterministic_mock" in result.output
+    assert "Vector candidates enabled:" in result.output
+    assert fake_key not in result.output
 
 
 def _seed_glossary(project_root: Path) -> None:

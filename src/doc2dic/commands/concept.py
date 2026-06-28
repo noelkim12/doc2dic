@@ -53,6 +53,7 @@ def show_concept(
     typer.echo(f"Type: {concept_item.term_type.value}")
     typer.echo(f"Status: {concept_item.status.value}")
     typer.echo(f"Tags: {', '.join(concept_item.tags)}")
+    typer.echo(f"Source: {concept_item.source_document or '(none)'}")
 
 
 @app.command("add")
@@ -67,6 +68,13 @@ def add_concept(
         list[str] | None,
         typer.Option("--tag", help="Tag label; repeatable."),
     ] = None,
+    source: Annotated[
+        str | None,
+        typer.Option(
+            "--source",
+            help="Source document this term is defined in (출처).",
+        ),
+    ] = None,
 ) -> None:
     """Add a concept and its primary variant."""
     with glossary_service() as service:
@@ -76,6 +84,7 @@ def add_concept(
                 definition=definition,
                 term_type=term_type,
                 tags=tuple(tag or ()),
+                source_document=source,
             ),
         )
     typer.echo(f"Created concept: {concept_item.id}")
@@ -88,6 +97,10 @@ def edit_concept(
     definition: Annotated[str | None, typer.Option("--definition", "-d")] = None,
     term_type: Annotated[ConceptTermType | None, typer.Option("--type")] = None,
     tag: Annotated[list[str] | None, typer.Option("--tag")] = None,
+    source: Annotated[
+        str | None,
+        typer.Option("--source", help="Source document this term is defined in (출처)."),
+    ] = None,
 ) -> None:
     """Edit concept fields."""
     with glossary_service() as service:
@@ -98,6 +111,7 @@ def edit_concept(
                 definition=definition,
                 term_type=term_type,
                 tags=None if tag is None else tuple(tag),
+                source_document=source,
             ),
         )
     typer.echo(f"Updated concept: {concept_item.id}")

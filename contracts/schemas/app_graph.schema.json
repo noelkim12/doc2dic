@@ -30,7 +30,7 @@
           "id": { "type": "string", "pattern": "^edge_[A-Za-z0-9_-]+$" },
           "source": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
           "target": { "type": "string", "pattern": "^concept_[A-Za-z0-9_-]+$" },
-          "relation": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of"] }
+          "relation": { "type": "string", "enum": ["alias_of", "variant_of", "contradicts", "related_to", "depends_on", "part_of", "derives_from", "value_of"] }
         }
       }
     }

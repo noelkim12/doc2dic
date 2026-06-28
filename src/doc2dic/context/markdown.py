@@ -76,10 +76,12 @@ def concept_lines(concepts: Sequence[ConceptCard]) -> list[str]:
     if len(concepts) == 0:
         return [*lines, "No approved concept cards matched.", ""]
     for concept in concepts:
+        source = inline(concept.source_document) if concept.source_document else "none stored"
         lines.extend(
             [
                 f"- {concept.primary_term} (`{concept.concept_id}`, {concept.status})",
                 f"  - Definition: {concept.definition}",
+                f"  - Source document: {source}",
                 f"  - Primary variants: {bullet_values(concept.variants.primary)}",
                 f"  - Alias variants: {bullet_values(concept.variants.alias)}",
                 (

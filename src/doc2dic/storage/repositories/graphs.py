@@ -44,8 +44,22 @@ class GraphRepository:
         )
         if row is None:
             return None
-        return GraphSnapshot(
-            id=text_cell(row, "id"),
-            createdAt=text_cell(row, "created_at"),
-            graph=AppGraph.model_validate_json(text_cell(row, "graph_json")),
+        return _snapshot_from_row(row)
+
+    def list_snapshots(self) -> tuple[GraphSnapshot, ...]:
+        """Return graph snapshots in newest-first order."""
+        rows = cast(
+            "list[sqlite3.Row]",
+            self._connection.execute(
+                "select * from graph_snapshots order by created_at desc, id",
+            ).fetchall(),
         )
+        return tuple(_snapshot_from_row(row) for row in rows)
+
+
+def _snapshot_from_row(row: sqlite3.Row) -> GraphSnapshot:
+    return GraphSnapshot(
+        id=text_cell(row, "id"),
+        createdAt=text_cell(row, "created_at"),
+        graph=AppGraph.model_validate_json(text_cell(row, "graph_json")),
+    )

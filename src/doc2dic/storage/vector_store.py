@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import cast
 
 from doc2dic.storage.sqlite_rows import optional_int_cell, require_row, text_cell
-from doc2dic.storage.vector_backend import SqliteVecBackend
+from doc2dic.storage.vector_backend import JsonVectorBackend
 from doc2dic.storage.vector_types import (
     StoredVector,
     VectorBackend,
@@ -33,7 +33,7 @@ class VectorStore:
         self._connection: sqlite3.Connection
         self._connection = connection
         self._backend: VectorBackend
-        self._backend = backend or SqliteVecBackend()
+        self._backend = backend or JsonVectorBackend()
         self._backend_loaded: bool
         self._backend_loaded = False
 
@@ -46,7 +46,7 @@ class VectorStore:
             return loaded
 
         configured_dimension = self._configured_dimension()
-        if configured_dimension != dimension:
+        if configured_dimension != dimension or not self._vector_table_exists():
             with self._connection:
                 self._backend.create_table(self._connection, dimension)
                 self._set_setting(ENABLED_SETTING, "true")
@@ -55,7 +55,7 @@ class VectorStore:
             self._set_setting(ENABLED_SETTING, "true")
         return VectorCapability(
             enabled=True,
-            reason="sqlite-vec enabled",
+            reason="vector search enabled",
             dimension=dimension,
         )
 
@@ -139,7 +139,7 @@ class VectorStore:
         if self._backend_loaded:
             return VectorCapability(
                 enabled=True,
-                reason="sqlite-vec loaded",
+                reason="vector backend loaded",
                 dimension=None,
             )
         try:
@@ -149,7 +149,7 @@ class VectorStore:
         self._backend_loaded = True
         return VectorCapability(
             enabled=True,
-            reason="sqlite-vec loaded",
+            reason="vector backend loaded",
             dimension=None,
         )
 
@@ -176,7 +176,7 @@ class VectorStore:
             )
         return VectorCapability(
             enabled=True,
-            reason="sqlite-vec enabled",
+            reason="vector search enabled",
             dimension=dimension,
         )
 
@@ -222,6 +222,21 @@ class VectorStore:
             self._connection.execute(
                 "select 1 as exists_flag from embeddings where id = ?",
                 (embedding_id,),
+            ).fetchone(),
+        )
+        if row is None:
+            return False
+        return optional_int_cell(require_row(row), "exists_flag") == 1
+
+    def _vector_table_exists(self) -> bool:
+        row = cast(
+            "sqlite3.Row | None",
+            self._connection.execute(
+                """
+                select 1 as exists_flag from sqlite_master
+                where type = 'table' and name = ?
+                """,
+                ("embedding_vectors",),
             ).fetchone(),
         )
         if row is None:

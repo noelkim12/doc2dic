@@ -45,6 +45,7 @@ def concept_from_row(row: sqlite3.Row) -> Concept:
         non_goals=tuple_from_json_text(text_cell(row, "non_goals_json")),
         examples=tuple_from_json_text(text_cell(row, "examples_json")),
         owner=optional_text_cell(row, "owner"),
+        source_document=optional_text_cell(row, "source_document"),
     )
 
 

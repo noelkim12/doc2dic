@@ -15,6 +15,7 @@ from doc2dic.domain import (
     TermVariantType,
 )
 from doc2dic.server.dependencies import DatabaseDep
+from doc2dic.services.glossary_embeddings import ProjectGlossaryEmbeddingIndexer
 from doc2dic.services.glossary_service import (
     CreateConceptInput,
     CreateVariantInput,
@@ -25,6 +26,11 @@ from doc2dic.services.glossary_service import (
 )
 
 router = APIRouter(prefix="/api", tags=["concepts"])
+
+
+def _glossary_service(database: DatabaseDep) -> GlossaryService:
+    """Return a glossary service with post-mutation embedding refresh enabled."""
+    return GlossaryService(database, ProjectGlossaryEmbeddingIndexer(database))
 
 
 class ConceptCreateBody(BaseModel):
@@ -108,7 +114,7 @@ def list_concepts(
     tag: Annotated[str | None, Query()] = None,
 ) -> tuple[ConceptPayload, ...]:
     """Return concepts from the project glossary."""
-    service = GlossaryService(database)
+    service = _glossary_service(database)
     return tuple(
         _concept_payload(concept)
         for concept in service.list_concepts(status=concept_status, tag=tag)
@@ -125,7 +131,7 @@ def create_concept(
     body: ConceptCreateBody,
 ) -> ConceptPayload | JSONResponse:
     """Create a glossary concept."""
-    service = GlossaryService(database)
+    service = _glossary_service(database)
     try:
         concept = service.create_concept(
             CreateConceptInput(
@@ -146,7 +152,7 @@ def get_concept(
     concept_id: str,
 ) -> ConceptPayload | JSONResponse:
     """Return one concept by id."""
-    service = GlossaryService(database)
+    service = _glossary_service(database)
     try:
         return _concept_payload(service.get_concept(concept_id))
     except GlossaryItemNotFoundError as error:

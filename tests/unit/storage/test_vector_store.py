@@ -8,7 +8,7 @@ from typing import cast
 from doc2dic.domain import Embedding, EmbeddingOwnerType
 from doc2dic.storage.connection import open_database
 from doc2dic.storage.migrations import migrate_database
-from doc2dic.storage.repositories.embeddings import EmbeddingRepository
+from doc2dic.storage.repositories.embeddings import EmbeddingLookup, EmbeddingRepository
 from doc2dic.storage.sqlite_rows import float_cell, int_cell, require_row, text_cell
 from doc2dic.storage.vector_store import (
     StoredVector,
@@ -167,6 +167,53 @@ def test_vector_store_when_dimension_changes_rebuilds_vector_table(
     assert text_cell(require_row(dimension_row), "value") == "2"
 
 
+def test_vector_store_when_settings_match_but_vector_table_is_missing_recreates_table(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+    backend = FakeVectorBackend()
+
+    with open_database(db_path) as connection:
+        embedding_repository = EmbeddingRepository(connection)
+        embedding_repository.upsert_embedding(_embedding(1, "concept_a"))
+        with connection:
+            _ = connection.execute("drop table embedding_vectors")
+            _ = connection.execute(
+                """
+                insert into settings(key, value, updated_at)
+                values (?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+                on conflict(key) do update set value = excluded.value
+                """,
+                ("embedding_vectors_enabled", "true"),
+            )
+            _ = connection.execute(
+                """
+                insert into settings(key, value, updated_at)
+                values (?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+                on conflict(key) do update set value = excluded.value
+                """,
+                ("embedding_vectors_dimension", "3"),
+            )
+
+        store = VectorStore(connection, backend=backend)
+        capability = store.ensure_capability(dimension=3)
+        write_result = store.upsert_vector(embedding_id=1, vector=(1.0, 0.0, 0.0))
+        vector_row = cast(
+            "sqlite3.Row | None",
+            connection.execute(
+                "select rowid from embedding_vectors where rowid = ?",
+                (1,),
+            ).fetchone(),
+        )
+
+    assert capability.enabled is True
+    assert capability.dimension == 3
+    assert backend.create_count == 1
+    assert write_result.enabled is True
+    assert int_cell(require_row(vector_row), "rowid") == 1
+
+
 def test_vector_store_when_vector_dimension_mismatches_disables_write(
     tmp_path: Path,
 ) -> None:
@@ -185,6 +232,65 @@ def test_vector_store_when_vector_dimension_mismatches_disables_write(
     assert write_result.reason == (
         "vector dimension 2 does not match configured dimension 3"
     )
+
+
+def test_embedding_repository_when_lookup_matches_owner_model_and_hash_reuses_row(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        repository = EmbeddingRepository(connection)
+        expected = _embedding(7, "concept_a")
+        repository.upsert_embedding(expected)
+        repository.upsert_embedding(_embedding(8, "concept_a"))
+
+        found = repository.find_existing_embedding(
+            EmbeddingLookup(
+                owner_type=EmbeddingOwnerType.CONCEPT,
+                owner_id="concept_a",
+                model="fake-embedding",
+                content_hash="0123456789abcdef7",
+            ),
+        )
+        missing = repository.find_existing_embedding(
+            EmbeddingLookup(
+                owner_type=EmbeddingOwnerType.CONCEPT,
+                owner_id="concept_a",
+                model="fake-embedding",
+                content_hash="missing-missing-00",
+            ),
+        )
+
+    assert found == expected
+    assert missing is None
+
+
+def test_embedding_repository_when_allocating_next_id_uses_max_plus_one(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        repository = EmbeddingRepository(connection)
+        empty_next_id = repository.next_embedding_id()
+        repository.upsert_embedding(_embedding(1, "concept_a"))
+        repository.upsert_embedding(_embedding(42, "concept_b"))
+
+        allocated_id = repository.next_embedding_id()
+        collision_row = cast(
+            "sqlite3.Row | None",
+            connection.execute(
+                "select id from embeddings where id = ?",
+                (allocated_id,),
+            ).fetchone(),
+        )
+
+    assert empty_next_id == 1
+    assert allocated_id == 43
+    assert collision_row is None
 
 
 def _embedding(embedding_id: int, owner_id: str) -> Embedding:

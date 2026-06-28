@@ -7,6 +7,8 @@ from enum import StrEnum
 from typing import Final
 
 DEFAULT_TOOL_NAME: Final = "doc2dic_explore"
+ANALYZE_TOOL_NAME: Final = "doc2dic_analyze"
+SUGGEST_TAGS_TOOL_NAME: Final = "doc2dic_suggest_tags"
 STATUS_TOOL_NAME: Final = "doc2dic_status"
 MCP_TOOLS_ENV: Final = "DOC2DIC_MCP_TOOLS"
 
@@ -42,6 +44,16 @@ TOOL_DEFINITIONS: Final[Mapping[str, ToolDefinition]] = {
         description="Build bounded terminology context from a local doc2dic project.",
         enabled_by_default=True,
     ),
+    ANALYZE_TOOL_NAME: ToolDefinition(
+        name=ANALYZE_TOOL_NAME,
+        description="Hidden legacy local analysis for glossary candidates.",
+        enabled_by_default=False,
+    ),
+    SUGGEST_TAGS_TOOL_NAME: ToolDefinition(
+        name=SUGGEST_TAGS_TOOL_NAME,
+        description="Suggest existing glossary tags before saving a term.",
+        enabled_by_default=True,
+    ),
     STATUS_TOOL_NAME: ToolDefinition(
         name=STATUS_TOOL_NAME,
         description="Hidden diagnostic status for an explicitly allowlisted project.",
@@ -52,6 +64,11 @@ TOOL_DEFINITIONS: Final[Mapping[str, ToolDefinition]] = {
 TOOL_ALIASES: Final[Mapping[str, str]] = {
     "explore": DEFAULT_TOOL_NAME,
     DEFAULT_TOOL_NAME: DEFAULT_TOOL_NAME,
+    "analyze": ANALYZE_TOOL_NAME,
+    ANALYZE_TOOL_NAME: ANALYZE_TOOL_NAME,
+    "suggest_tags": SUGGEST_TAGS_TOOL_NAME,
+    "tags": SUGGEST_TAGS_TOOL_NAME,
+    SUGGEST_TAGS_TOOL_NAME: SUGGEST_TAGS_TOOL_NAME,
     "status": STATUS_TOOL_NAME,
     STATUS_TOOL_NAME: STATUS_TOOL_NAME,
 }

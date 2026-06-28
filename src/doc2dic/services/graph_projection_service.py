@@ -23,6 +23,8 @@ type GraphRelation = Literal[
     "related_to",
     "depends_on",
     "part_of",
+    "derives_from",
+    "value_of",
 ]
 
 EPOCH_CREATED_AT: Final = "1970-01-01T00:00:00Z"
@@ -188,18 +190,17 @@ class GraphProjectionService:
 
 def _parse_relation(relation: str) -> GraphRelation:
     match relation:
-        case "alias_of":
-            return "alias_of"
-        case "variant_of":
-            return "variant_of"
-        case "contradicts":
-            return "contradicts"
-        case "related_to":
-            return "related_to"
-        case "depends_on":
-            return "depends_on"
-        case "part_of":
-            return "part_of"
+        case (
+            "alias_of"
+            | "variant_of"
+            | "contradicts"
+            | "related_to"
+            | "depends_on"
+            | "part_of"
+            | "derives_from"
+            | "value_of"
+        ):
+            return relation
         case _:
             message = f"unknown graph relation type: {relation}"
             raise GraphProjectionError(message)

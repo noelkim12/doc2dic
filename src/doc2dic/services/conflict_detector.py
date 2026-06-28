@@ -3,12 +3,12 @@
 import sqlite3
 from hashlib import sha256
 from pathlib import Path
-from typing import Final, cast
+from typing import Final
 
 from doc2dic.domain import IssueEvidence, IssueEvidenceKind, TermIssue, TermIssueType
+from doc2dic.services import conflict_vector
 from doc2dic.services.document_check import CheckResult, check_document
 from doc2dic.services.document_conflict_models import (
-    ActiveConcept,
     CandidateContext,
     CandidateEvidence,
     ClassifiedCandidates,
@@ -16,7 +16,7 @@ from doc2dic.services.document_conflict_models import (
     RejectedFinding,
 )
 from doc2dic.services.document_context_cards import DocumentContextInput
-from doc2dic.services.document_glossary import GlossaryTerm, load_glossary_terms
+from doc2dic.services.document_glossary import load_glossary_terms
 from doc2dic.services.document_issue_detection import CONTEXT_CHARS, CREATED_AT
 from doc2dic.services.document_normalization import normalize_term_text
 from doc2dic.services.llm_service import (
@@ -27,10 +27,7 @@ from doc2dic.services.llm_service import (
     llm_provider_from_environment,
 )
 from doc2dic.services.review_state_machine import IssueStatus
-from doc2dic.storage.json_codec import tuple_from_json_text
 from doc2dic.storage.repositories.issues import IssueRepository
-from doc2dic.storage.sqlite_rows import text_cell
-from doc2dic.storage.vector_store import VectorStore
 
 MIN_CONFLICT_CONFIDENCE: Final = 0.65
 MAX_CONTEXT_CHARS: Final = 240
@@ -42,10 +39,13 @@ def analyze_document(
     *,
     write_issues: bool,
     llm_service: LLMTermExtractionService | None = None,
+    vector_dependencies: conflict_vector.ConflictVectorDependencies | None = None,
 ) -> ConflictAnalysisResult:
     """Run parser, exact checks, provider extraction, and conflict issue creation."""
     check = check_document(connection, path, write_issues=False)
-    vector_candidates = VectorStore(connection).query_top_k(vector=(), top_k=3)
+    vector_candidates = conflict_vector.disabled_vector_query_result(
+        "no semantic vector query candidates",
+    )
     service = llm_service or LLMTermExtractionService(llm_provider_from_environment())
     extraction = service.extract_terms(
         DocumentContextInput(
@@ -54,10 +54,28 @@ def analyze_document(
             title=check.document.title,
             text=check.document.raw_text,
         ),
-    )
+        )
     match extraction:
         case TermExtractionSuccess(provider=provider, candidates=candidates):
-            classified = _classify_candidates(connection, check, candidates)
+            dependencies = vector_dependencies
+            if dependencies is None:
+                dependencies = conflict_vector.default_conflict_vector_dependencies(
+                    connection,
+                )
+            vector_result = conflict_vector.query_conflict_vector_candidates(
+                connection,
+                check,
+                candidates,
+                embedding_service=dependencies.embedding_service,
+                vector_store=dependencies.vector_store,
+            )
+            vector_candidates = vector_result.vector_candidates
+            classified = _classify_candidates(
+                connection,
+                check,
+                candidates,
+                semantic_matches=vector_result.matches,
+            )
             llm_issues = classified.issues
             rejected = classified.rejected
             failure = None
@@ -84,22 +102,34 @@ def _classify_candidates(
     connection: sqlite3.Connection,
     check: CheckResult,
     candidates: tuple[LLMTermCandidate, ...],
+    *,
+    semantic_matches: tuple[conflict_vector.SemanticConceptMatch, ...] = (),
 ) -> ClassifiedCandidates:
     terms = load_glossary_terms(connection)
-    concepts = _load_active_concepts(connection)
+    concepts = conflict_vector.load_active_concepts(connection)
+    semantic_concept_ids = {
+        semantic_match.candidate_index: semantic_match.concept_id
+        for semantic_match in semantic_matches
+    }
     issues: list[TermIssue] = []
     rejected: list[RejectedFinding] = []
     seen_issue_ids: set[str] = set()
-    for candidate in candidates:
+    for candidate_index, candidate in enumerate(candidates):
         evidence = _candidate_evidence(check, candidate)
         if evidence is None:
             rejected.append(_rejected(candidate, "missing_bounded_evidence"))
             continue
+        matched_terms = conflict_vector.matching_terms(terms, candidate.surface)
         context = CandidateContext(
             candidate=candidate,
             evidence=evidence,
-            matching_terms=_matching_terms(terms, candidate.surface),
-            related_concept=_related_concept(concepts, candidate),
+            matching_terms=matched_terms,
+            related_concept=conflict_vector.related_concept(
+                concepts,
+                candidate,
+                matched_terms,
+                semantic_concept_ids.get(candidate_index),
+            ),
         )
         for issue in _candidate_issues(check.document.id, context):
             if issue.id not in seen_issue_ids:
@@ -211,47 +241,6 @@ def _candidate_evidence(
 
 def _context_before(text: str, start: int) -> str:
     return text[max(0, start - CONTEXT_CHARS) : start][-MAX_CONTEXT_CHARS:]
-
-
-def _matching_terms(
-    terms: tuple[GlossaryTerm, ...],
-    surface: str,
-) -> tuple[GlossaryTerm, ...]:
-    normalized = normalize_term_text(surface)
-    return tuple(term for term in terms if term.normalized_label == normalized)
-
-
-def _related_concept(
-    concepts: tuple[ActiveConcept, ...],
-    candidate: LLMTermCandidate,
-) -> ActiveConcept | None:
-    candidate_tags = frozenset(candidate.tags)
-    for concept in concepts:
-        if len(candidate_tags & frozenset(concept.tags)) > 0:
-            return concept
-    return None
-
-
-def _load_active_concepts(connection: sqlite3.Connection) -> tuple[ActiveConcept, ...]:
-    rows = cast(
-        "list[sqlite3.Row]",
-        connection.execute(
-            """
-            select id, primary_term, tags_json
-            from concepts
-            where status = 'active'
-            order by id
-            """,
-        ).fetchall(),
-    )
-    return tuple(
-        ActiveConcept(
-            concept_id=text_cell(row, "id"),
-            primary_term=text_cell(row, "primary_term"),
-            tags=tuple_from_json_text(text_cell(row, "tags_json")),
-        )
-        for row in rows
-    )
 
 
 def _rejected(candidate: LLMTermCandidate, reason: str) -> RejectedFinding:

@@ -161,5 +161,17 @@ def _expected_graph_body() -> dict[str, object]:
                 "target": "concept_dodge_roll",
                 "relation": "depends_on",
             },
+            {
+                "id": "edge_ff73d3d909435021",
+                "source": "concept_dodge_roll",
+                "target": "concept_combat_stamina",
+                "relation": "derives_from",
+            },
+            {
+                "id": "edge_377971ef0d78dc87",
+                "source": "concept_entry_stamina",
+                "target": "concept_combat_stamina",
+                "relation": "value_of",
+            },
         ],
     }

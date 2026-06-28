@@ -41,6 +41,8 @@ def test_graph_current_when_json_requested_outputs_contract_graph(
         "alias_of",
         "contradicts",
         "depends_on",
+        "derives_from",
+        "value_of",
     ]
     with open_database(tmp_path / ".doc2dic" / "glossary.sqlite3") as connection:
         row = cast(

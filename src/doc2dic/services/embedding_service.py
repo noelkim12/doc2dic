@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-import hashlib
+import importlib
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Final, Protocol
+from typing import Final, Protocol, runtime_checkable
+
+from doc2dic.services.auth_store import AuthFileError, load_auth_file
+from doc2dic.services.embedding_mock import deterministic_vector
 
 MOCK_EMBEDDING_PROVIDER_NAME: Final = "deterministic_mock_embedding"
 DISABLED_EMBEDDING_PROVIDER_NAME: Final = "disabled_embedding_provider"
 DEFAULT_EMBEDDING_DIMENSION: Final = 12
 EMBEDDING_API_KEY_ENV: Final = "DOC2DIC_EMBEDDING_API_KEY"
+EMBEDDING_PROVIDER_ENV: Final = "DOC2DIC_EMBEDDING_PROVIDER"
 
 
 class EmbeddingFailureCode(StrEnum):
@@ -20,6 +24,13 @@ class EmbeddingFailureCode(StrEnum):
     PROVIDER_DISABLED = "provider_disabled"
     PROVIDER_ERROR = "provider_error"
     INVALID_DIMENSION = "invalid_dimension"
+
+
+class EmbeddingInputType(StrEnum):
+    """Provider embedding mode for the input text role."""
+
+    DOCUMENT = "document"
+    QUERY = "query"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +50,7 @@ class EmbeddingSuccess:
     model: str
     dimension: int
     embeddings: tuple[EmbeddingVector, ...]
+    total_tokens: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,9 +83,42 @@ class EmbeddingProvider(Protocol):
         """Embedding vector dimension."""
         ...
 
-    def embed_texts(self, texts: tuple[str, ...]) -> tuple[EmbeddingVector, ...]:
+    def embed_texts(
+        self,
+        texts: tuple[str, ...],
+        input_type: EmbeddingInputType, /,
+    ) -> tuple[EmbeddingVector, ...]:
         """Return embeddings for each text in order."""
         ...
+
+
+@runtime_checkable
+class _EmbeddingUsageReporter(Protocol):
+    @property
+    def total_tokens(self) -> int | None:
+        ...
+
+
+@runtime_checkable
+class _VoyageProviderFactory(Protocol):
+    @classmethod
+    def from_config(cls, config: EmbeddingProviderConfig) -> EmbeddingProvider:
+        ...
+
+
+@runtime_checkable
+class _VoyagePublicModule(Protocol):
+    VoyageEmbeddingProvider: type[_VoyageProviderFactory]
+    VoyageEmbeddingProviderConfig: type[_VoyageProviderFactory]
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingProviderConfig:
+    """Resolved embedding provider metadata without exposing secrets."""
+
+    provider_name: str
+    model: str
+    api_key: str | None = field(repr=False)
 
 
 class EmbeddingProviderError(RuntimeError):
@@ -89,10 +134,13 @@ class EmbeddingService:
 
     def __init__(self, provider: EmbeddingProvider) -> None:
         """Store the provider dependency."""
-        self._provider: EmbeddingProvider
-        self._provider = provider
+        self._provider: EmbeddingProvider = provider
 
-    def embed_texts(self, texts: tuple[str, ...]) -> EmbeddingResult:
+    def embed_texts(
+        self,
+        texts: tuple[str, ...],
+        input_type: EmbeddingInputType = EmbeddingInputType.DOCUMENT,
+    ) -> EmbeddingResult:
         """Return deterministic success or safe failure for input texts."""
         if self._provider.dimension <= 0:
             return EmbeddingFailure(
@@ -100,8 +148,15 @@ class EmbeddingService:
                 message="embedding dimension must be positive",
                 provider=self._provider.provider_name,
             )
+        if not texts:
+            return EmbeddingSuccess(
+                self._provider.provider_name,
+                self._provider.model,
+                self._provider.dimension,
+                embeddings=(), total_tokens=_provider_total_tokens(self._provider),
+            )
         try:
-            embeddings = self._provider.embed_texts(texts)
+            embeddings = self._provider.embed_texts(texts, input_type)
         except EmbeddingProviderDisabledError as exc:
             return EmbeddingFailure(
                 code=EmbeddingFailureCode.PROVIDER_DISABLED,
@@ -122,10 +177,10 @@ class EmbeddingService:
                     provider=self._provider.provider_name,
                 )
         return EmbeddingSuccess(
-            provider=self._provider.provider_name,
-            model=self._provider.model,
-            dimension=self._provider.dimension,
-            embeddings=embeddings,
+            self._provider.provider_name,
+            self._provider.model,
+            self._provider.dimension,
+            embeddings=embeddings, total_tokens=_provider_total_tokens(self._provider),
         )
 
 
@@ -137,13 +192,17 @@ class DeterministicMockEmbeddingProvider:
     model: str = "mock-embedding-v1"
     provider_name: str = MOCK_EMBEDDING_PROVIDER_NAME
 
-    def embed_texts(self, texts: tuple[str, ...]) -> tuple[EmbeddingVector, ...]:
+    def embed_texts(
+        self,
+        texts: tuple[str, ...],
+        _input_type: EmbeddingInputType,
+    ) -> tuple[EmbeddingVector, ...]:
         """Return stable vectors with no external calls."""
         return tuple(
             EmbeddingVector(
                 text=text,
                 model=self.model,
-                values=_deterministic_vector(text, self.model, self.dimension),
+                values=deterministic_vector(text, self.model, self.dimension),
             )
             for text in texts
         )
@@ -158,7 +217,11 @@ class DisabledEmbeddingProvider:
     model: str = "disabled-embedding"
     provider_name: str = DISABLED_EMBEDDING_PROVIDER_NAME
 
-    def embed_texts(self, texts: tuple[str, ...]) -> tuple[EmbeddingVector, ...]:
+    def embed_texts(
+        self,
+        texts: tuple[str, ...],
+        _input_type: EmbeddingInputType,
+    ) -> tuple[EmbeddingVector, ...]:
         """Reject embedding without making any network call."""
         _ = texts
         raise EmbeddingProviderDisabledError(self.reason)
@@ -169,10 +232,13 @@ class OpenAIEmbeddingProvider(DisabledEmbeddingProvider):
 
     provider_name: str = "openai_embedding_disabled"
     model: str = "openai-disabled"
+
     @classmethod
-    def from_environment(cls) -> OpenAIEmbeddingProvider | DisabledEmbeddingProvider:
-        """Return a disabled provider without requiring SDKs or keys."""
-        api_key = os.environ.get(EMBEDDING_API_KEY_ENV)
+    def from_api_key(
+        cls,
+        api_key: str | None,
+    ) -> OpenAIEmbeddingProvider | DisabledEmbeddingProvider:
+        """Return a disabled provider based on credential availability."""
         if api_key is None or api_key == "":
             return DisabledEmbeddingProvider(
                 reason=f"{EMBEDDING_API_KEY_ENV} is not configured",
@@ -182,46 +248,73 @@ class OpenAIEmbeddingProvider(DisabledEmbeddingProvider):
 
 def embedding_provider_from_environment() -> EmbeddingProvider:
     """Return configured embedding provider without network access."""
-    provider_name = os.environ.get("DOC2DIC_EMBEDDING_PROVIDER", "mock")
-    match provider_name:
+    try:
+        config = _embedding_provider_config()
+    except AuthFileError as exc:
+        return DisabledEmbeddingProvider(reason=str(exc))
+    match config.provider_name:
         case "mock" | "deterministic_mock":
             return DeterministicMockEmbeddingProvider()
         case "openai":
-            return OpenAIEmbeddingProvider.from_environment()
+            return OpenAIEmbeddingProvider.from_api_key(config.api_key)
+        case "voyage":
+            return _voyage_provider_from_config(config)
         case "disabled":
             return DisabledEmbeddingProvider()
         case unknown:
-            return DisabledEmbeddingProvider(
-                reason=f"unsupported embedding provider: {unknown}",
-            )
+            reason = f"unsupported embedding provider: {unknown}"
+            return DisabledEmbeddingProvider(reason=reason)
 
 
-def _deterministic_vector(text: str, model: str, dimension: int) -> tuple[float, ...]:
-    seed = f"{model}\n{text}".encode()
-    values: list[float] = []
-    counter = 0
-    while len(values) < dimension:
-        digest = hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
-        for byte in digest:
-            values.append(round((byte / 127.5) - 1.0, 6))
-            if len(values) == dimension:
-                break
-        counter += 1
-    return tuple(values)
+def _embedding_provider_config() -> EmbeddingProviderConfig:
+    env_provider = _non_empty_env(EMBEDDING_PROVIDER_ENV)
+    if env_provider is not None:
+        return EmbeddingProviderConfig(
+            provider_name=env_provider,
+            model="",
+            api_key=_non_empty_env(EMBEDDING_API_KEY_ENV),
+        )
+    auth = load_auth_file()
+    provider_name = auth.embedding.provider
+    env_key = _non_empty_env(EMBEDDING_API_KEY_ENV)
+    return EmbeddingProviderConfig(
+        provider_name=provider_name,
+        model=auth.embedding.model,
+        api_key=env_key or auth.embedding.api_key_for(provider_name),
+    )
 
 
-__all__ = [
-    "DeterministicMockEmbeddingProvider",
-    "DisabledEmbeddingProvider",
-    "EmbeddingFailure",
-    "EmbeddingFailureCode",
-    "EmbeddingProvider",
-    "EmbeddingProviderDisabledError",
-    "EmbeddingProviderError",
-    "EmbeddingResult",
-    "EmbeddingService",
-    "EmbeddingSuccess",
-    "EmbeddingVector",
-    "OpenAIEmbeddingProvider",
-    "embedding_provider_from_environment",
-]
+def _non_empty_env(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return None
+    return value
+
+
+def _voyage_provider_from_config(config: EmbeddingProviderConfig) -> EmbeddingProvider:
+    return _voyage_module().VoyageEmbeddingProvider.from_config(config)
+
+
+def __getattr__(
+    name: str,
+) -> type[_VoyageProviderFactory]:
+    match name:
+        case "VoyageEmbeddingProvider":
+            return _voyage_module().VoyageEmbeddingProvider
+        case "VoyageEmbeddingProviderConfig":
+            return _voyage_module().VoyageEmbeddingProviderConfig
+        case _:
+            raise AttributeError(name)
+
+
+def _voyage_module() -> _VoyagePublicModule:
+    module = importlib.import_module("doc2dic.services.embedding_voyage")
+    if isinstance(module, _VoyagePublicModule):
+        return module
+    raise AttributeError(module.__name__)
+
+
+def _provider_total_tokens(provider: EmbeddingProvider) -> int | None:
+    if isinstance(provider, _EmbeddingUsageReporter):
+        return provider.total_tokens
+    return None
