@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import DocumentViewer from "../../../components/documents/DocumentViewer";
 import OccurrencePanel from "../../../components/documents/OccurrencePanel";
 import Loading from "../../../components/shared/Loading";
@@ -37,14 +37,7 @@ export default function DocumentDetailPage() {
   if (!document) return null;
 
   return (
-    <div className="page-document-detail">
-      <header className="page-header">
-        <Link to="/documents" className="back-link">
-          &larr; Back to Documents
-        </Link>
-        <h1 className="page-title">{document.title}</h1>
-      </header>
-
+    <div className="document-detail-panel">
       <DocumentViewer document={document} />
 
       {occurrenceQuery.isLoading ? (

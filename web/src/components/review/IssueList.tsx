@@ -5,6 +5,7 @@ import StatusBadge from "../shared/StatusBadge";
 interface Props {
   issues: readonly TermIssue[];
   onSelect?: (issue: TermIssue) => void;
+  selectedId?: string;
 }
 
 const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
@@ -26,7 +27,7 @@ const STATUS_OPTIONS: readonly (IssueStatus | "all")[] = [
   "failed",
 ];
 
-export default function IssueList({ issues, onSelect }: Props) {
+export default function IssueList({ issues, onSelect, selectedId }: Props) {
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "all">("all");
   const [typeFilter, setTypeFilter] = useState<IssueType | "all">("all");
 
@@ -112,7 +113,9 @@ export default function IssueList({ issues, onSelect }: Props) {
             {filtered.map((issue) => (
               <tr
                 key={issue.id}
-                className={`data-row ${onSelect ? "clickable" : ""}`}
+                className={`data-row ${onSelect ? "clickable" : ""} ${
+                  selectedId === issue.id ? "selected" : ""
+                }`}
                 onClick={() => onSelect?.(issue)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

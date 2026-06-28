@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   Document,
@@ -23,7 +23,10 @@ import IssueList from "../src/components/review/IssueList";
 import IssueDetail from "../src/components/review/IssueDetail";
 import ReviewActionPanel from "../src/components/review/ReviewActionPanel";
 import DocumentsPage from "../src/app/documents/page";
+import DocumentDetailPage from "../src/app/documents/[documentId]/page";
 import ReviewPage from "../src/app/review/page";
+import IssueDetailPage from "../src/app/review/[issueId]/page";
+import EmptyState from "../src/components/shared/EmptyState";
 import { ApiError } from "../src/lib/api";
 
 /* ── Module-level apiClient mock ── */
@@ -76,6 +79,54 @@ function renderWithProviders(
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[options?.route || "/"]}>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+/* Render the documents tab as a nested route tree so selection is URL-driven. */
+function renderDocuments(options?: { route?: string }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[options?.route || "/documents"]}>
+        <Routes>
+          <Route path="/documents" element={<DocumentsPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select a document to view its contents." />
+              }
+            />
+            <Route path=":documentId" element={<DocumentDetailPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+/* Render the review tab as a nested route tree so selection is URL-driven. */
+function renderReview(options?: { route?: string }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[options?.route || "/review"]}>
+        <Routes>
+          <Route path="/review" element={<ReviewPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select an issue to review its details and actions." />
+              }
+            />
+            <Route path=":issueId" element={<IssueDetailPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -347,6 +398,14 @@ describe("IssueList", () => {
     expect(onSelect).toHaveBeenCalledWith(MOCK_ISSUES[0]);
   });
 
+  it("marks the selected issue row with the selected class", () => {
+    const { container } = renderWithProviders(
+      <IssueList issues={MOCK_ISSUES} selectedId={MOCK_ISSUES[0].id} />,
+    );
+    const selected = container.querySelector(".data-row.selected");
+    expect(selected).not.toBeNull();
+  });
+
   it("shows empty message when no issues exist", () => {
     renderWithProviders(<IssueList issues={[]} />);
     expect(
@@ -603,14 +662,14 @@ describe("DocumentsPage", () => {
   it("shows loading state while fetching documents", () => {
     mockListDocuments.mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
     expect(screen.getByText(/loading documents/i)).toBeInTheDocument();
   });
 
   it("shows documents table after successful load", async () => {
     mockListDocuments.mockResolvedValue([...MOCK_DOCUMENTS]);
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
 
     await waitFor(() => {
       expect(screen.getByText("combat_core.md")).toBeInTheDocument();
@@ -623,7 +682,7 @@ describe("DocumentsPage", () => {
     mockListDocuments.mockResolvedValue([...MOCK_DOCUMENTS]);
     mockAnalyzeDocumentPath.mockResolvedValue(undefined);
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
 
     await waitFor(() => {
       expect(screen.getByText("Analyze")).toBeInTheDocument();
@@ -644,7 +703,7 @@ describe("DocumentsPage", () => {
   it("shows error state when API fails", async () => {
     mockListDocuments.mockRejectedValue(new Error("Server Error"));
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
 
     await waitFor(() => {
       expect(screen.getByText(/failed to load|error/i)).toBeInTheDocument();
@@ -659,7 +718,7 @@ describe("DocumentsPage", () => {
       chunks: [],
     });
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
 
     await waitFor(() => {
       expect(screen.getByText("combat_core.md")).toBeInTheDocument();
@@ -691,7 +750,7 @@ describe("DocumentsPage", () => {
       }),
     );
 
-    renderWithProviders(<DocumentsPage />, { route: "/documents" });
+    renderDocuments({ route: "/documents" });
 
     await waitFor(() => {
       expect(screen.getByText("Analyze")).toBeInTheDocument();
@@ -728,7 +787,7 @@ describe("ReviewPage", () => {
   it("loads and displays issues from listIssues endpoint", async () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -739,7 +798,7 @@ describe("ReviewPage", () => {
   it("shows loading state while fetching issues", () => {
     mockListIssues.mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
     expect(screen.getByText(/loading issues/i)).toBeInTheDocument();
   });
 
@@ -747,7 +806,7 @@ describe("ReviewPage", () => {
     const user = userEvent.setup();
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -773,7 +832,7 @@ describe("ReviewPage", () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
     mockAcceptIssue.mockResolvedValue(actionPayload(MOCK_ISSUES[0], "resolved"));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -803,7 +862,7 @@ describe("ReviewPage", () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
     mockDismissIssue.mockResolvedValue(actionPayload(MOCK_ISSUES[0], "dismissed"));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -827,7 +886,7 @@ describe("ReviewPage", () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
     mockResolveNewConcept.mockResolvedValue(actionPayload(MOCK_ISSUES[0], "resolved"));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -854,7 +913,7 @@ describe("ReviewPage", () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
     mockResolveAlias.mockResolvedValue(actionPayload(MOCK_ISSUES[1], "resolved"));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("STM")).toBeInTheDocument();
@@ -881,7 +940,7 @@ describe("ReviewPage", () => {
     mockListIssues.mockResolvedValue([...MOCK_ISSUES]);
     mockResolveForbidden.mockResolvedValue(actionPayload(MOCK_ISSUES[1], "resolved"));
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("STM")).toBeInTheDocument();
@@ -915,7 +974,7 @@ describe("ReviewPage", () => {
     });
     mockAcceptIssue.mockRejectedValue(conflictErr);
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();
@@ -955,7 +1014,7 @@ describe("ReviewPage", () => {
       }),
     );
 
-    renderWithProviders(<ReviewPage />, { route: "/review" });
+    renderReview({ route: "/review" });
 
     await waitFor(() => {
       expect(screen.getByText("스태미나")).toBeInTheDocument();

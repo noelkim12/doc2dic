@@ -5,6 +5,7 @@ import ConceptDetailPage from "./glossary/[conceptId]/page";
 import DocumentsPage from "./documents/page";
 import DocumentDetailPage from "./documents/[documentId]/page";
 import ReviewPage from "./review/page";
+import IssueDetailPage from "./review/[issueId]/page";
 import GraphPage from "./graph/page";
 import SettingsPage from "./settings/page";
 import EmptyState from "../components/shared/EmptyState";
@@ -51,9 +52,24 @@ export default function AppLayout() {
             />
             <Route path=":conceptId" element={<ConceptDetailPage />} />
           </Route>
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="documents/:documentId" element={<DocumentDetailPage />} />
-          <Route path="review" element={<ReviewPage />} />
+          <Route path="documents" element={<DocumentsPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select a document to view its contents." />
+              }
+            />
+            <Route path=":documentId" element={<DocumentDetailPage />} />
+          </Route>
+          <Route path="review" element={<ReviewPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select an issue to review its details and actions." />
+              }
+            />
+            <Route path=":issueId" element={<IssueDetailPage />} />
+          </Route>
           <Route path="graph" element={<GraphPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Routes>
