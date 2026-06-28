@@ -689,6 +689,37 @@ html, body, #root {
   background: rgba(59, 130, 246, 0.1);
 }
 
+/* ── Shared 3-pane master-detail ── */
+
+.master-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+  gap: var(--space-lg);
+  min-height: 0;
+}
+
+.md-list {
+  overflow-x: auto;
+}
+
+.md-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding-right: var(--space-sm);
+}
+
+@media (max-width: 1024px) {
+  .master-detail {
+    grid-template-columns: 1fr;
+  }
+  .md-detail {
+    max-height: none;
+  }
+}
+
 /* ── Document Viewer ── */
 
 .document-viewer { display: flex; flex-direction: column; gap: var(--space-md); }
