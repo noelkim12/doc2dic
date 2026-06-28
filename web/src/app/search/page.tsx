@@ -61,26 +61,31 @@ export default function SearchPage() {
         <h1 className="page-title">Vector Search</h1>
       </header>
 
-      <form className="search-form" onSubmit={handleSubmit}>
-        <label htmlFor="search-text">Search text</label>
-        <textarea
-          id="search-text"
-          className="search-input"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="Enter a phrase to find semantically similar terms..."
-        />
-        <button
-          className="btn-primary"
-          type="submit"
-          disabled={text.trim().length === 0}
-        >
-          Search
-        </button>
-      </form>
-
       <section className="search-results" aria-label="Search results">
-        <MasterDetail list={resultsContent} />
+        <MasterDetail
+          list={
+            <>
+              <form className="search-form" onSubmit={handleSubmit}>
+                <label htmlFor="search-text">Search text</label>
+                <textarea
+                  id="search-text"
+                  className="search-input"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="Enter a phrase to find semantically similar terms..."
+                />
+                <button
+                  className="btn-primary"
+                  type="submit"
+                  disabled={text.trim().length === 0}
+                >
+                  Search
+                </button>
+              </form>
+              {resultsContent}
+            </>
+          }
+        />
       </section>
     </div>
   );

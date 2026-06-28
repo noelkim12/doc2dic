@@ -1105,6 +1105,11 @@ html, body, #root {
 
 /* ── Page: Vector Search ── */
 
+/* Vector Search right pane docks to the very top of the results area. */
+.page-search .md-detail {
+  top: 0;
+}
+
 .search-form {
   display: flex;
   flex-direction: column;
