@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { SimilarConceptMatch } from "../src/lib/types";
+import { ApiError } from "../src/lib/api";
 import SimilarConceptList from "../src/components/search/SimilarConceptList";
 import SearchPage from "../src/app/search/page";
 
@@ -115,6 +116,21 @@ describe("SearchPage", () => {
 
     await waitFor(() =>
       expect(screen.getByText(/no similar terms found/i)).toBeInTheDocument(),
+    );
+  });
+
+  it("shows the backend error reason when search fails", async () => {
+    const user = userEvent.setup();
+    mockSearch.mockRejectedValue(
+      new ApiError(503, "Service Unavailable", {
+        error: { code: "vector_search_unavailable", message: "vector search is disabled" },
+      }),
+    );
+    renderPage(<SearchPage />);
+    await user.type(screen.getByLabelText(/search text/i), "stamina");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() =>
+      expect(screen.getByText(/vector search is disabled/i)).toBeInTheDocument(),
     );
   });
 });

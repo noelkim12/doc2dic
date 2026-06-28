@@ -57,7 +57,13 @@ function safeBody(raw: unknown): SafeErrorBody {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
-  const obj = raw as Record<string, unknown>;
+  const root = raw as Record<string, unknown>;
+  const obj =
+    root.error !== null &&
+    typeof root.error === "object" &&
+    !Array.isArray(root.error)
+      ? (root.error as Record<string, unknown>)
+      : root;
   return {
     message: typeof obj.message === "string" ? obj.message : undefined,
     code: typeof obj.code === "string" ? obj.code : undefined,

@@ -5,13 +5,14 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from fastapi import FastAPI
 
 from doc2dic.server.app import create_app
 from tests.integration.server.test_concepts_api import request_app
 
 
-def _seed_concept(app) -> None:
-    request_app(
+def _seed_concept(app: FastAPI) -> None:
+    resp = request_app(
         app,
         "post",
         "/api/concepts",
@@ -21,6 +22,7 @@ def _seed_concept(app) -> None:
             "termType": "resource",
         },
     )
+    assert resp.status_code == 201, f"seed failed: {resp.json()}"
 
 
 def test_similar_concepts_returns_seeded_concept(
