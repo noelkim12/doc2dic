@@ -36,8 +36,8 @@ MAX_QUERY_CHARS = 2000
 # 1st-stage retrieval width. Equal to RESULT_LIMIT for the MVP; a Phase 2
 # reranker widens this and re-orders candidates before truncating to
 # RESULT_LIMIT, without changing the response schema.
-CANDIDATE_LIMIT = 10
-RESULT_LIMIT = 10
+CANDIDATE_LIMIT = 50
+RESULT_LIMIT = 50
 
 
 class SimilarConceptMatch(BaseModel):

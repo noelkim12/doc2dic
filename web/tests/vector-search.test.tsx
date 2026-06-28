@@ -73,15 +73,25 @@ describe("SimilarConceptList", () => {
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
-  it("navigates to glossary detail on click", async () => {
+  it("calls onSelect with the concept id on click", async () => {
     const user = userEvent.setup();
+    const onSelect = vi.fn();
     render(
       <MemoryRouter>
-        <SimilarConceptList matches={MATCHES} />
+        <SimilarConceptList matches={MATCHES} onSelect={onSelect} />
       </MemoryRouter>,
     );
     await user.click(screen.getByText("스태미나"));
-    expect(mockNavigate).toHaveBeenCalledWith("/glossary/c_1");
+    expect(onSelect).toHaveBeenCalledWith("c_1");
+  });
+
+  it("marks the selected card as current", () => {
+    render(
+      <MemoryRouter>
+        <SimilarConceptList matches={MATCHES} selectedId="c_1" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button")).toHaveAttribute("aria-current", "true");
   });
 });
 

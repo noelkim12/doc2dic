@@ -73,7 +73,15 @@ export default function AppLayout() {
             <Route path=":issueId" element={<IssueDetailPage />} />
           </Route>
           <Route path="graph" element={<GraphPage />} />
-          <Route path="search" element={<SearchPage />} />
+          <Route path="search" element={<SearchPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select a result to view its definition." />
+              }
+            />
+            <Route path=":conceptId" element={<ConceptDetailPage />} />
+          </Route>
           <Route path="settings" element={<SettingsPage />} />
         </Routes>
         <Outlet />

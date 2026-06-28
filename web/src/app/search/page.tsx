@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import SimilarConceptList from "../../components/search/SimilarConceptList";
+import MasterDetail from "../../components/shared/MasterDetail";
 import Loading from "../../components/shared/Loading";
 import ErrorState from "../../components/shared/ErrorState";
 import EmptyState from "../../components/shared/EmptyState";
@@ -16,6 +18,8 @@ function errorMessage(error: unknown): string {
 }
 
 export default function SearchPage() {
+  const navigate = useNavigate();
+  const { conceptId } = useParams<{ conceptId: string }>();
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState("");
 
@@ -27,6 +31,29 @@ export default function SearchPage() {
     event.preventDefault();
     setSubmitted(text.trim());
   }
+
+  function handleSelect(id: string) {
+    navigate(`/search/${id}`);
+  }
+
+  const resultsContent = !hasSubmitted ? (
+    <EmptyState message="Enter text and search to find similar terms." />
+  ) : query.isLoading ? (
+    <Loading label="Searching..." />
+  ) : query.isError ? (
+    <ErrorState
+      message={errorMessage(query.error)}
+      onRetry={() => query.refetch()}
+    />
+  ) : results.length === 0 ? (
+    <EmptyState message="No similar terms found." />
+  ) : (
+    <SimilarConceptList
+      matches={results}
+      onSelect={handleSelect}
+      selectedId={conceptId}
+    />
+  );
 
   return (
     <div className="page-search">
@@ -53,20 +80,7 @@ export default function SearchPage() {
       </form>
 
       <section className="search-results" aria-label="Search results">
-        {!hasSubmitted ? (
-          <EmptyState message="Enter text and search to find similar terms." />
-        ) : query.isLoading ? (
-          <Loading label="Searching..." />
-        ) : query.isError ? (
-          <ErrorState
-            message={errorMessage(query.error)}
-            onRetry={() => query.refetch()}
-          />
-        ) : results.length === 0 ? (
-          <EmptyState message="No similar terms found." />
-        ) : (
-          <SimilarConceptList matches={results} />
-        )}
+        <MasterDetail list={resultsContent} />
       </section>
     </div>
   );
