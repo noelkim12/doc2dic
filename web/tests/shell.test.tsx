@@ -30,7 +30,7 @@ describe("shell smoke tests", () => {
   it("renders all nav links", () => {
     renderWithProviders(<AppLayout />);
     const nav = screen.getByRole("navigation");
-    const expected = ["Home", "Glossary", "Documents", "Review", "Graph", "Settings"];
+    const expected = ["Home", "Glossary", "Documents", "Review", "Graph", "Vector Search", "Settings"];
     for (const label of expected) {
       expect(nav).toHaveTextContent(label);
     }
@@ -219,8 +219,7 @@ describe("query options export structure", () => {
   });
 
   it("exports search query factories", () => {
-    expect(typeof queryModule.searchQueries.concepts).toBe("function");
-    expect(typeof queryModule.searchQueries.similarConcepts).toBe("function");
+    expect(typeof queryModule.searchQueries.similar).toBe("function");
   });
 
   it("queryOptions returns queryKey and queryFn", () => {

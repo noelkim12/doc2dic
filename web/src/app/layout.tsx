@@ -7,6 +7,7 @@ import DocumentDetailPage from "./documents/[documentId]/page";
 import ReviewPage from "./review/page";
 import IssueDetailPage from "./review/[issueId]/page";
 import GraphPage from "./graph/page";
+import SearchPage from "./search/page";
 import SettingsPage from "./settings/page";
 import EmptyState from "../components/shared/EmptyState";
 
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { to: "/documents", label: "Documents" },
   { to: "/review", label: "Review" },
   { to: "/graph", label: "Graph" },
+  { to: "/search", label: "Vector Search" },
   { to: "/settings", label: "Settings" },
 ] as const;
 
@@ -71,6 +73,7 @@ export default function AppLayout() {
             <Route path=":issueId" element={<IssueDetailPage />} />
           </Route>
           <Route path="graph" element={<GraphPage />} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Routes>
         <Outlet />
