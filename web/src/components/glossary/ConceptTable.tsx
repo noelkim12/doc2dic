@@ -5,11 +5,12 @@ import StatusBadge from "../shared/StatusBadge";
 interface Props {
   concepts: readonly Concept[];
   onSelect?: (id: string) => void;
+  selectedId?: string;
 }
 
 type StatusFilter = Concept["status"] | "all";
 
-export default function ConceptTable({ concepts, onSelect }: Props) {
+export default function ConceptTable({ concepts, onSelect, selectedId }: Props) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [tagFilter, setTagFilter] = useState("");
 
@@ -90,7 +91,9 @@ export default function ConceptTable({ concepts, onSelect }: Props) {
             {filtered.map((c) => (
               <tr
                 key={c.id}
-                className={`data-row ${onSelect ? "clickable" : ""}`}
+                className={`data-row ${onSelect ? "clickable" : ""} ${
+                  selectedId === c.id ? "selected" : ""
+                }`}
                 onClick={() => onSelect?.(c.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

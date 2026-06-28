@@ -7,6 +7,7 @@ import DocumentDetailPage from "./documents/[documentId]/page";
 import ReviewPage from "./review/page";
 import GraphPage from "./graph/page";
 import SettingsPage from "./settings/page";
+import EmptyState from "../components/shared/EmptyState";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home" },
@@ -41,8 +42,15 @@ export default function AppLayout() {
       <main className="app-main">
         <Routes>
           <Route index element={<HomePage />} />
-          <Route path="glossary" element={<GlossaryPage />} />
-          <Route path="glossary/:conceptId" element={<ConceptDetailPage />} />
+          <Route path="glossary" element={<GlossaryPage />}>
+            <Route
+              index
+              element={
+                <EmptyState message="Select a term to view its definition." />
+              }
+            />
+            <Route path=":conceptId" element={<ConceptDetailPage />} />
+          </Route>
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="documents/:documentId" element={<DocumentDetailPage />} />
           <Route path="review" element={<ReviewPage />} />

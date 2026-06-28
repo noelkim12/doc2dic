@@ -151,6 +151,15 @@ describe("ConceptTable", () => {
     expect(onSelect).toHaveBeenCalledWith("c_1");
   });
 
+  it("marks the selected row with the selected class", () => {
+    const { container } = renderWithProviders(
+      <ConceptTable concepts={MOCK_CONCEPTS} selectedId="c_1" />,
+    );
+    const selected = container.querySelector(".data-row.selected");
+    expect(selected).not.toBeNull();
+    expect(selected).toHaveTextContent("스태미나");
+  });
+
   it("shows empty message when filters match nothing", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ConceptTable concepts={MOCK_CONCEPTS} />);
@@ -433,7 +442,7 @@ describe("ConceptDetailPage", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows back link to glossary list", async () => {
+  it("renders the term as a panel heading (no back link)", async () => {
     mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0] });
 
     renderWithProviders(<ConceptDetailPage />, {
@@ -441,7 +450,10 @@ describe("ConceptDetailPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/back to glossary/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "스태미나" }),
+      ).toBeInTheDocument();
     });
+    expect(screen.queryByText(/back to glossary/i)).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import ConceptForm from "../../../components/glossary/ConceptForm";
 import VariantList from "../../../components/glossary/VariantList";
 import RelationEditor from "../../../components/glossary/RelationEditor";
@@ -76,12 +76,9 @@ export default function ConceptDetailPage() {
   if (!concept) return null;
 
   return (
-    <div className="page-concept-detail">
-      <header className="page-header">
-        <Link to="/glossary" className="back-link">
-          &larr; Back to Glossary
-        </Link>
-        <h1 className="page-title">{concept.primaryTerm}</h1>
+    <div className="concept-detail-panel">
+      <header className="concept-panel-header">
+        <h2 className="concept-panel-title">{concept.primaryTerm}</h2>
         <div className="concept-header-meta">
           <StatusBadge status={concept.status} />
           <span className="type-badge">{concept.termType}</span>

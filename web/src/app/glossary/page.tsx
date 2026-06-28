@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ConceptTable from "../../components/glossary/ConceptTable";
 import ConceptForm from "../../components/glossary/ConceptForm";
+import MasterDetail from "../../components/shared/MasterDetail";
 import Loading from "../../components/shared/Loading";
 import ErrorState from "../../components/shared/ErrorState";
 import EmptyState from "../../components/shared/EmptyState";
@@ -11,6 +12,7 @@ import { ApiError } from "../../lib/api";
 
 export default function GlossaryPage() {
   const navigate = useNavigate();
+  const { conceptId } = useParams<{ conceptId: string }>();
   const [showCreate, setShowCreate] = useState(false);
 
   const listQuery = useQuery(conceptQueries.list());
@@ -23,6 +25,23 @@ export default function GlossaryPage() {
   function mutationApiError(err: unknown): ApiError | null {
     return err instanceof ApiError ? err : null;
   }
+
+  const listContent = listQuery.isLoading ? (
+    <Loading label="Loading concepts..." />
+  ) : listQuery.isError ? (
+    <ErrorState
+      message={listQuery.error.message || "Failed to load concepts"}
+      onRetry={() => listQuery.refetch()}
+    />
+  ) : listQuery.data?.length === 0 ? (
+    <EmptyState message="No concepts yet. Create your first term!" />
+  ) : (
+    <ConceptTable
+      concepts={listQuery.data ?? []}
+      onSelect={handleSelect}
+      selectedId={conceptId}
+    />
+  );
 
   return (
     <div className="page-glossary">
@@ -52,18 +71,7 @@ export default function GlossaryPage() {
         </section>
       )}
 
-      {listQuery.isLoading ? (
-        <Loading label="Loading concepts..." />
-      ) : listQuery.isError ? (
-        <ErrorState
-          message={listQuery.error.message || "Failed to load concepts"}
-          onRetry={() => listQuery.refetch()}
-        />
-      ) : listQuery.data?.length === 0 ? (
-        <EmptyState message="No concepts yet. Create your first term!" />
-      ) : (
-        <ConceptTable concepts={listQuery.data ?? []} onSelect={handleSelect} />
-      )}
+      <MasterDetail list={listContent} />
     </div>
   );
 }
