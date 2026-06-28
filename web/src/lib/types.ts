@@ -54,6 +54,12 @@ export type Concept = {
   readonly updatedAt: string;
 };
 
+export type SimilarConceptMatch = {
+  readonly concept: Concept;
+  readonly distance: number;
+  readonly similarity: number;
+};
+
 export type TermVariant = {
   readonly id: string;
   readonly conceptId: string;

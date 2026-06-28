@@ -94,17 +94,11 @@ export const graphQueries = {
 
 export const searchQueries = {
   all: ["search"] as const,
-  concepts: (q: string) =>
+  similar: (text: string) =>
     queryOptions({
-      queryKey: [...searchQueries.all, "concepts", q],
-      queryFn: () => apiClient.searchConcepts(q),
-      enabled: q.length > 0,
-    }),
-  similarConcepts: (text: string) =>
-    queryOptions({
-      queryKey: [...searchQueries.all, "similar", text],
+      queryKey: [...searchQueries.all, "similar", text] as const,
       queryFn: () => apiClient.searchSimilarConcepts(text),
-      enabled: text.length > 0,
+      enabled: text.trim().length > 0,
     }),
 };
 

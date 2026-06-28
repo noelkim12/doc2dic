@@ -1,5 +1,6 @@
 import type {
   Concept,
+  SimilarConceptMatch,
   TermVariant,
   Document,
   TermOccurrence,
@@ -253,7 +254,7 @@ export const apiClient = {
     return get(`${API_ENDPOINTS.searchConcepts}?q=${encodeURIComponent(q)}`);
   },
 
-  searchSimilarConcepts(text: string): Promise<readonly Concept[]> {
+  searchSimilarConcepts(text: string): Promise<readonly SimilarConceptMatch[]> {
     return get(
       `${API_ENDPOINTS.searchSimilarConcepts}?text=${encodeURIComponent(text)}`,
     );
