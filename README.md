@@ -41,8 +41,8 @@ Graphify 연동은 현재 export-only입니다. `doc2dic graph export --format g
 저장소 루트에서 개발 모드로 설치합니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
-/home/noel/.local/bin/python -m pip install -e ".[dev]"
+cd /path/to/doc2dic
+python -m pip install -e ".[dev]"
 doc2dic --help
 ```
 
@@ -65,12 +65,12 @@ MCP 서버나 에이전트 컨텍스트에서 missing index, degraded index, mis
 mock provider를 쓰면 외부 LLM API 키나 임베딩 API 키 없이 핵심 명령을 실행할 수 있습니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
+cd /path/to/doc2dic
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 doc2dic init
-DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic check /home/noel/projects/personal/doc2dic-workspace/doc2dic/samples/docs/dungeon_draft.md --write-issues
-DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic analyze /home/noel/projects/personal/doc2dic-workspace/doc2dic/samples/docs/dungeon_draft.md
+DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic check /path/to/doc2dic/samples/docs/dungeon_draft.md --write-issues
+DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic analyze /path/to/doc2dic/samples/docs/dungeon_draft.md
 ```
 
 `check --write-issues`는 발견한 문제를 리뷰 큐에 기록합니다. `analyze`는 후보 용어와 충돌 가능성을 분석합니다. 두 명령 모두 용어집을 바로 수정하지 않습니다.
@@ -180,14 +180,14 @@ doc2dic uninstall --local --target opencode
 아래 명령은 임시 프로젝트를 만들고, mock provider로 점검과 분석을 실행한 뒤, 리뷰 큐와 그래프 export까지 확인합니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
-/home/noel/.local/bin/python -m pip install -e ".[dev]"
+cd /path/to/doc2dic
+python -m pip install -e ".[dev]"
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 doc2dic init
 doc2dic status
-DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic check /home/noel/projects/personal/doc2dic-workspace/doc2dic/samples/docs/dungeon_draft.md --write-issues
-DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic analyze /home/noel/projects/personal/doc2dic-workspace/doc2dic/samples/docs/dungeon_draft.md
+DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic check /path/to/doc2dic/samples/docs/dungeon_draft.md --write-issues
+DOC2DIC_LLM_PROVIDER=mock DOC2DIC_EMBEDDING_PROVIDER=mock doc2dic analyze /path/to/doc2dic/samples/docs/dungeon_draft.md
 doc2dic review list
 doc2dic graph current --json
 doc2dic graph export --format graphify
@@ -229,22 +229,22 @@ doc2dic graph export --format graphify
 README나 문서 명령 표를 바꾼 뒤에는 문서 명령 일관성 테스트를 실행합니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
-/home/noel/.local/bin/python -m pytest tests/docs/test_docs_commands.py -q
+cd /path/to/doc2dic
+python -m pytest tests/docs/test_docs_commands.py -q
 ```
 
 임시 프로젝트 quickstart를 다시 확인하려면 smoke gate를 실행합니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
+cd /path/to/doc2dic
 scripts/test.sh --smoke
 ```
 
 소유권 문서를 바꾼 경우에만 아래 테스트를 실행합니다.
 
 ```bash
-cd /home/noel/projects/personal/doc2dic-workspace/doc2dic
-/home/noel/.local/bin/python -m pytest tests/contracts/test_agent_ownership_docs.py -q
+cd /path/to/doc2dic
+python -m pytest tests/contracts/test_agent_ownership_docs.py -q
 ```
 
 ## 관련 문서
