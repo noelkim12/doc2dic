@@ -80,6 +80,27 @@ def ensure_label_available(connection: sqlite3.Connection, normalized: str) -> N
         raise DuplicateGlossaryItemError(message)
 
 
+def ensure_physical_name_available(
+    connection: sqlite3.Connection,
+    physical_name: str,
+    exclude_concept_id: str | None = None,
+) -> None:
+    """Raise when another concept already claims this case-insensitive identifier."""
+    row = cast(
+        "sqlite3.Row | None",
+        connection.execute(
+            """
+            select id from concepts
+            where physical_name = ? collate nocase and id is not ?
+            """,
+            (physical_name, exclude_concept_id),
+        ).fetchone(),
+    )
+    if row is not None:
+        message = f"duplicate physical name: {physical_name}"
+        raise DuplicateGlossaryItemError(message)
+
+
 def ensure_primary_variant_available(
     connection: sqlite3.Connection,
     concept_id: str,

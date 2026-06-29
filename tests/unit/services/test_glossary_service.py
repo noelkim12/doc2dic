@@ -255,6 +255,49 @@ def test_update_concept_changes_source_but_preserves_when_omitted(
     assert preserved.definition == "Updated definition."
 
 
+def test_create_concept_with_physical_name(tmp_path: Path) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        service = GlossaryService(connection)
+        concept = service.create_concept(
+            CreateConceptInput(
+                primary_term="체력",
+                definition="생명 수치",
+                term_type=ConceptTermType.STAT,
+                physical_name="hp",
+            ),
+        )
+        assert concept.physical_name == "hp"
+        assert service.get_concept(concept.id).physical_name == "hp"
+
+
+def test_duplicate_physical_name_rejected(tmp_path: Path) -> None:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+
+    with open_database(db_path) as connection:
+        service = GlossaryService(connection)
+        service.create_concept(
+            CreateConceptInput(
+                primary_term="체력",
+                definition="d",
+                term_type=ConceptTermType.STAT,
+                physical_name="hp",
+            ),
+        )
+        with pytest.raises(DuplicateGlossaryItemError):
+            service.create_concept(
+                CreateConceptInput(
+                    primary_term="생명력",
+                    definition="d",
+                    term_type=ConceptTermType.STAT,
+                    physical_name="HP",
+                ),
+            )
+
+
 def _count(
     connection: "sqlite3.Connection",
     table_name: Literal["term_variants", "concept_relations"],

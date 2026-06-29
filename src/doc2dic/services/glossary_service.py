@@ -35,6 +35,7 @@ from doc2dic.services.glossary_models import (
 from doc2dic.services.glossary_row_mapping import relation_from_row
 from doc2dic.services.glossary_rows import (
     ensure_label_available,
+    ensure_physical_name_available,
     ensure_primary_variant_available,
     find_concept,
     insert_relation_row,
@@ -108,6 +109,7 @@ class GlossaryService:
             created_at=now,
             updated_at=now,
             source_document=_clean_optional(command.source_document),
+            physical_name=_clean_optional(command.physical_name),
         )
         variant = TermVariant(
             id=variant_id,
@@ -120,6 +122,8 @@ class GlossaryService:
         )
         with self._transaction():
             ensure_label_available(self._connection, normalized)
+            if concept.physical_name is not None:
+                ensure_physical_name_available(self._connection, concept.physical_name)
             upsert_concept_row(self._connection, concept)
             insert_variant_row(self._connection, variant)
             replace_concept_tags(self._connection, concept.id, concept.tags)
@@ -156,6 +160,11 @@ class GlossaryService:
             if command.source_document is not None
             else current.source_document
         )
+        physical_name = (
+            _clean_optional(command.physical_name)
+            if command.physical_name is not None
+            else current.physical_name
+        )
         updated = current.model_copy(
             update={
                 "primary_term": primary_term,
@@ -164,12 +173,20 @@ class GlossaryService:
                 "status": command.status or current.status,
                 "tags": tags,
                 "source_document": source_document,
+                "physical_name": physical_name,
                 "updated_at": _now(),
             },
         )
         with self._transaction():
             if normalize_label(primary_term) != normalize_label(current.primary_term):
                 ensure_label_available(self._connection, normalize_label(primary_term))
+            if (
+                physical_name is not None
+                and physical_name != current.physical_name
+            ):
+                ensure_physical_name_available(
+                    self._connection, physical_name, exclude_concept_id=concept_id
+                )
             upsert_concept_row(self._connection, updated)
             replace_concept_tags(self._connection, updated.id, updated.tags)
         self._refresh_embeddings()
