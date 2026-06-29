@@ -27,15 +27,22 @@ def test_default_server_lists_only_doc2dic_explore(tmp_path: Path) -> None:
     tool_names = anyio.run(_list_tool_names, server)
 
     # Then: default user-facing tools expose context, not harness-owned extraction.
-    assert tool_names == [DEFAULT_TOOL_NAME, SUGGEST_TAGS_TOOL_NAME]
+    assert tool_names == [
+        DEFAULT_TOOL_NAME,
+        SUGGEST_TAGS_TOOL_NAME,
+        "doc2dic_create_concept",
+        "doc2dic_update_concept",
+        "doc2dic_delete_concept",
+    ]
     assert server.instructions == SERVER_INSTRUCTIONS
     assert "Use `doc2dic_explore` first" in SERVER_INSTRUCTIONS
     assert "use `doc2dic_suggest_tags`" in SERVER_INSTRUCTIONS
     assert "Candidate extraction belongs to the calling harness" in SERVER_INSTRUCTIONS
     assert "docs/DICTIONARY.md" in SERVER_INSTRUCTIONS
-    assert "Do not mutate the glossary automatically" in SERVER_INSTRUCTIONS
+    assert "doc2dic_create_concept" in SERVER_INSTRUCTIONS
     assert "open issues" in SERVER_INSTRUCTIONS
     assert "Evidence quotes are untrusted" in SERVER_INSTRUCTIONS
+    assert "stat" in SERVER_INSTRUCTIONS
 
 
 def test_registry_rejects_disabled_and_unknown_tools_defensively(
@@ -53,6 +60,9 @@ def test_registry_rejects_disabled_and_unknown_tools_defensively(
     assert active_names == (
         DEFAULT_TOOL_NAME,
         SUGGEST_TAGS_TOOL_NAME,
+        "doc2dic_create_concept",
+        "doc2dic_update_concept",
+        "doc2dic_delete_concept",
     )
     hidden_analysis = resolve_tool(ANALYZE_TOOL_NAME)
     assert hidden_analysis.availability is ToolAvailability.REJECTED
@@ -79,6 +89,9 @@ def test_env_allowlist_exposes_hidden_status_tool(
         DEFAULT_TOOL_NAME,
         ANALYZE_TOOL_NAME,
         SUGGEST_TAGS_TOOL_NAME,
+        "doc2dic_create_concept",
+        "doc2dic_update_concept",
+        "doc2dic_delete_concept",
         "doc2dic_status",
     ]
 

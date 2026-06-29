@@ -9,6 +9,9 @@ from typing import Final
 DEFAULT_TOOL_NAME: Final = "doc2dic_explore"
 ANALYZE_TOOL_NAME: Final = "doc2dic_analyze"
 SUGGEST_TAGS_TOOL_NAME: Final = "doc2dic_suggest_tags"
+CREATE_CONCEPT_TOOL_NAME: Final = "doc2dic_create_concept"
+UPDATE_CONCEPT_TOOL_NAME: Final = "doc2dic_update_concept"
+DELETE_CONCEPT_TOOL_NAME: Final = "doc2dic_delete_concept"
 STATUS_TOOL_NAME: Final = "doc2dic_status"
 MCP_TOOLS_ENV: Final = "DOC2DIC_MCP_TOOLS"
 
@@ -54,6 +57,21 @@ TOOL_DEFINITIONS: Final[Mapping[str, ToolDefinition]] = {
         description="Suggest existing glossary tags before saving a term.",
         enabled_by_default=True,
     ),
+    CREATE_CONCEPT_TOOL_NAME: ToolDefinition(
+        name=CREATE_CONCEPT_TOOL_NAME,
+        description="Create a glossary concept (direct write).",
+        enabled_by_default=True,
+    ),
+    UPDATE_CONCEPT_TOOL_NAME: ToolDefinition(
+        name=UPDATE_CONCEPT_TOOL_NAME,
+        description="Update a glossary concept (direct write).",
+        enabled_by_default=True,
+    ),
+    DELETE_CONCEPT_TOOL_NAME: ToolDefinition(
+        name=DELETE_CONCEPT_TOOL_NAME,
+        description="Delete a glossary concept and its cascade (direct write).",
+        enabled_by_default=True,
+    ),
     STATUS_TOOL_NAME: ToolDefinition(
         name=STATUS_TOOL_NAME,
         description="Hidden diagnostic status for an explicitly allowlisted project.",
@@ -69,6 +87,12 @@ TOOL_ALIASES: Final[Mapping[str, str]] = {
     "suggest_tags": SUGGEST_TAGS_TOOL_NAME,
     "tags": SUGGEST_TAGS_TOOL_NAME,
     SUGGEST_TAGS_TOOL_NAME: SUGGEST_TAGS_TOOL_NAME,
+    "create_concept": CREATE_CONCEPT_TOOL_NAME,
+    CREATE_CONCEPT_TOOL_NAME: CREATE_CONCEPT_TOOL_NAME,
+    "update_concept": UPDATE_CONCEPT_TOOL_NAME,
+    UPDATE_CONCEPT_TOOL_NAME: UPDATE_CONCEPT_TOOL_NAME,
+    "delete_concept": DELETE_CONCEPT_TOOL_NAME,
+    DELETE_CONCEPT_TOOL_NAME: DELETE_CONCEPT_TOOL_NAME,
     "status": STATUS_TOOL_NAME,
     STATUS_TOOL_NAME: STATUS_TOOL_NAME,
 }

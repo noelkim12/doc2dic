@@ -10,20 +10,34 @@ from pydantic import ValidationError
 from doc2dic.context import build_explore_context
 from doc2dic.context.tag_suggestions import build_tag_suggestions
 from doc2dic.mcp.guidance import (
+    concept_not_found_guidance,
     degraded_index_guidance,
+    delete_not_confirmed_guidance,
+    duplicate_concept_guidance,
+    invalid_mutation_input_guidance,
     invalid_project_guidance,
     missing_project_guidance,
     status_guidance,
 )
 from doc2dic.mcp.schemas import (
     AnalyzeToolInput,
+    CreateConceptToolInput,
+    DeleteConceptToolInput,
     ExploreToolInput,
     StatusToolInput,
     SuggestTagsToolInput,
+    UpdateConceptToolInput,
 )
 from doc2dic.services.conflict_detector import analyze_document
 from doc2dic.services.document_conflict_models import ConflictAnalysisResult
 from doc2dic.services.document_parser import UnsupportedDocumentFormatError
+from doc2dic.services.glossary_models import (
+    CreateConceptInput,
+    DuplicateGlossaryItemError,
+    GlossaryItemNotFoundError,
+    UpdateConceptInput,
+)
+from doc2dic.services.glossary_service import GlossaryService
 from doc2dic.storage.connection import DB_DIR_NAME, DB_FILE_NAME, open_database
 
 REVIEW_WORKFLOW_GUIDANCE: Final = "- Use the review workflow before adding aliases, forbidden terms, or concepts."  # noqa: E501
@@ -109,6 +123,174 @@ def run_doc2dic_suggest_tags(
             return build_tag_suggestions(parsed.query, connection=connection)
     except sqlite3.DatabaseError:
         return degraded_index_guidance(paths.root)
+
+
+def run_doc2dic_create_concept(  # noqa: PLR0913
+    primary_term: str,
+    definition: str,
+    term_type: str = "unknown",
+    tags: tuple[str, ...] | None = None,
+    physical_name: str | None = None,
+    source_document: str | None = None,
+    project_path: str | Path | None = None,
+) -> str:
+    """Create a glossary concept and return a success summary or guidance."""
+    try:
+        parsed = CreateConceptToolInput(
+            primary_term=primary_term,
+            definition=definition,
+            term_type=term_type,  # pyright: ignore[reportArgumentType]
+            tags=tags or (),
+            physical_name=physical_name,
+            source_document=source_document,
+            project_path=Path.cwd() if project_path is None else Path(project_path),
+        )
+    except ValidationError as error:
+        return invalid_mutation_input_guidance(str(error))
+    try:
+        paths = _project_paths(parsed.project_path)
+    except (OSError, ValueError):
+        return invalid_project_guidance(str(project_path))
+
+    if not paths.db_path.exists():
+        return missing_project_guidance(paths.root)
+
+    try:
+        with open_database(paths.db_path) as connection:
+            concept = GlossaryService(connection).create_concept(
+                CreateConceptInput(
+                    primary_term=parsed.primary_term,
+                    definition=parsed.definition,
+                    term_type=parsed.term_type,
+                    tags=parsed.tags,
+                    source_document=parsed.source_document,
+                    physical_name=parsed.physical_name,
+                ),
+            )
+    except DuplicateGlossaryItemError as error:
+        return duplicate_concept_guidance(str(error))
+    except sqlite3.DatabaseError:
+        return degraded_index_guidance(paths.root)
+
+    return "\n".join(
+        (
+            "# doc2dic concept created",
+            "",
+            f"- Concept: `{concept.id}`",
+            f"- Primary term: {concept.primary_term}",
+            f"- Physical name: {concept.physical_name or 'none'}",
+            f"- Status: {concept.status.value}",
+        ),
+    )
+
+
+def run_doc2dic_update_concept(  # noqa: PLR0911, PLR0913
+    concept_id: str,
+    primary_term: str | None = None,
+    definition: str | None = None,
+    term_type: str | None = None,
+    status: str | None = None,
+    tags: tuple[str, ...] | None = None,
+    physical_name: str | None = None,
+    source_document: str | None = None,
+    project_path: str | Path | None = None,
+) -> str:
+    """Patch a glossary concept and return a success summary or guidance."""
+    try:
+        parsed = UpdateConceptToolInput(
+            concept_id=concept_id,
+            primary_term=primary_term,
+            definition=definition,
+            term_type=term_type,  # pyright: ignore[reportArgumentType]
+            status=status,  # pyright: ignore[reportArgumentType]
+            tags=tags,
+            physical_name=physical_name,
+            source_document=source_document,
+            project_path=Path.cwd() if project_path is None else Path(project_path),
+        )
+    except ValidationError as error:
+        return invalid_mutation_input_guidance(str(error))
+    try:
+        paths = _project_paths(parsed.project_path)
+    except (OSError, ValueError):
+        return invalid_project_guidance(str(project_path))
+
+    if not paths.db_path.exists():
+        return missing_project_guidance(paths.root)
+
+    try:
+        with open_database(paths.db_path) as connection:
+            concept = GlossaryService(connection).update_concept(
+                parsed.concept_id,
+                UpdateConceptInput(
+                    primary_term=parsed.primary_term,
+                    definition=parsed.definition,
+                    term_type=parsed.term_type,
+                    status=parsed.status,
+                    tags=parsed.tags,
+                    source_document=parsed.source_document,
+                    physical_name=parsed.physical_name,
+                ),
+            )
+    except GlossaryItemNotFoundError:
+        return concept_not_found_guidance(parsed.concept_id)
+    except DuplicateGlossaryItemError as error:
+        return duplicate_concept_guidance(str(error))
+    except sqlite3.DatabaseError:
+        return degraded_index_guidance(paths.root)
+
+    return "\n".join(
+        (
+            "# doc2dic concept updated",
+            "",
+            f"- Concept: `{concept.id}`",
+            f"- Primary term: {concept.primary_term}",
+            f"- Physical name: {concept.physical_name or 'none'}",
+            f"- Status: {concept.status.value}",
+        ),
+    )
+
+
+def run_doc2dic_delete_concept(  # noqa: PLR0911
+    concept_id: str,
+    confirm: bool = False,
+    project_path: str | Path | None = None,
+) -> str:
+    """Delete a glossary concept after confirmation, or return guidance."""
+    try:
+        parsed = DeleteConceptToolInput(
+            concept_id=concept_id,
+            confirm=confirm,
+            project_path=Path.cwd() if project_path is None else Path(project_path),
+        )
+    except ValidationError as error:
+        return invalid_mutation_input_guidance(str(error))
+    if not parsed.confirm:
+        return delete_not_confirmed_guidance(parsed.concept_id)
+    try:
+        paths = _project_paths(parsed.project_path)
+    except (OSError, ValueError):
+        return invalid_project_guidance(str(project_path))
+
+    if not paths.db_path.exists():
+        return missing_project_guidance(paths.root)
+
+    try:
+        with open_database(paths.db_path) as connection:
+            GlossaryService(connection).delete_concept(parsed.concept_id)
+    except GlossaryItemNotFoundError:
+        return concept_not_found_guidance(parsed.concept_id)
+    except sqlite3.DatabaseError:
+        return degraded_index_guidance(paths.root)
+
+    return "\n".join(
+        (
+            "# doc2dic concept deleted",
+            "",
+            f"- Concept: `{parsed.concept_id}`",
+            "- Cascade removed variants, tags, and relations.",
+        ),
+    )
 
 
 def run_doc2dic_status(project_path: str | Path | None = None) -> str:
