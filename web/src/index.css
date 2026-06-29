@@ -524,7 +524,22 @@ html, body, #root {
   border-radius: var(--radius-md);
 }
 
-.detail-actions { margin-bottom: var(--space-lg); }
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.delete-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.delete-confirm-text { color: var(--color-error); font-size: 0.8125rem; }
 
 /* ── Variant List ── */
 

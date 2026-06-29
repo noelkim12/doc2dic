@@ -124,6 +124,17 @@ export function usePatchConcept() {
   });
 }
 
+export function useDeleteConcept() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.deleteConcept(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: conceptQueries.lists() });
+      qc.invalidateQueries({ queryKey: conceptQueries.details() });
+    },
+  });
+}
+
 export function useCreateVariant() {
   const qc = useQueryClient();
   return useMutation({

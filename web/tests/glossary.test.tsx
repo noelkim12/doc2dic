@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Concept } from "../src/lib/types";
 import ConceptTable from "../src/components/glossary/ConceptTable";
@@ -20,6 +20,7 @@ const mockListConcepts = vi.fn();
 const mockCreateConcept = vi.fn();
 const mockPatchConcept = vi.fn();
 const mockCreateVariant = vi.fn();
+const mockDeleteConcept = vi.fn();
 
 vi.mock("../src/lib/api", async () => {
   const actual = await vi.importActual("../src/lib/api");
@@ -32,6 +33,7 @@ vi.mock("../src/lib/api", async () => {
       createConcept: (...args: unknown[]) => mockCreateConcept(...args),
       patchConcept: (...args: unknown[]) => mockPatchConcept(...args),
       createTermVariant: (...args: unknown[]) => mockCreateVariant(...args),
+      deleteConcept: (...args: unknown[]) => mockDeleteConcept(...args),
     },
   };
 });
@@ -48,6 +50,23 @@ function renderWithProviders(
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[options?.route || "/"]}>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+/* Render the detail page through a real route so useParams() resolves conceptId. */
+function renderDetailRoute(conceptId: string) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/glossary/${conceptId}`]}>
+        <Routes>
+          <Route path="/glossary/:conceptId" element={<ConceptDetailPage />} />
+          <Route path="/glossary" element={<div>Glossary list</div>} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -455,5 +474,91 @@ describe("ConceptDetailPage", () => {
       ).toBeInTheDocument();
     });
     expect(screen.queryByText(/back to glossary/i)).toBeNull();
+  });
+
+  it("requires confirmation before deleting a concept", async () => {
+    const user = userEvent.setup();
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0] });
+    mockDeleteConcept.mockResolvedValue(undefined);
+
+    renderDetailRoute("c_1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    // First click only reveals the confirmation, it must not delete yet.
+    await user.click(screen.getByText("Delete"));
+    expect(mockDeleteConcept).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("group", { name: /confirm delete concept/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("deletes the concept after confirmation and navigates to the list", async () => {
+    const user = userEvent.setup();
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0] });
+    mockDeleteConcept.mockResolvedValue(undefined);
+
+    renderDetailRoute("c_1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+    await user.click(screen.getByText("Confirm Delete"));
+
+    await waitFor(() => {
+      expect(mockDeleteConcept).toHaveBeenCalledWith("c_1");
+    });
+    // After success the route changes to the glossary list.
+    await waitFor(() => {
+      expect(screen.getByText("Glossary list")).toBeInTheDocument();
+    });
+  });
+
+  it("cancelling the delete confirmation does not delete", async () => {
+    const user = userEvent.setup();
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0] });
+    mockDeleteConcept.mockResolvedValue(undefined);
+
+    renderDetailRoute("c_1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+    await user.click(screen.getByText("Cancel"));
+
+    expect(mockDeleteConcept).not.toHaveBeenCalled();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
+  });
+
+  it("surfaces an error when deletion fails", async () => {
+    const user = userEvent.setup();
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0] });
+    mockDeleteConcept.mockRejectedValue(
+      new ApiError(409, "Conflict", {
+        message: "Concept is referenced by documents",
+        details: "Concept is referenced by documents",
+      }),
+    );
+
+    renderDetailRoute("c_1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Delete"));
+    await user.click(screen.getByText("Confirm Delete"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/concept is referenced by documents/i),
+      ).toBeInTheDocument();
+    });
   });
 });

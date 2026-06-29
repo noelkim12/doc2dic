@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ConceptForm from "../../../components/glossary/ConceptForm";
 import VariantList from "../../../components/glossary/VariantList";
 import RelationEditor from "../../../components/glossary/RelationEditor";
@@ -11,17 +11,21 @@ import {
   conceptQueries,
   usePatchConcept,
   useCreateVariant,
+  useDeleteConcept,
 } from "../../../lib/queries";
 import type { Concept, TermType } from "../../../lib/types";
 import { ApiError } from "../../../lib/api";
 
 export default function ConceptDetailPage() {
   const { conceptId } = useParams<{ conceptId: string }>();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const detailQuery = useQuery(conceptQueries.detail(conceptId!));
   const patchMutation = usePatchConcept();
   const addAliasMutation = useCreateVariant();
+  const deleteMutation = useDeleteConcept();
 
   const concept = detailQuery.data;
 
@@ -51,6 +55,13 @@ export default function ConceptDetailPage() {
     await addAliasMutation.mutateAsync({
       conceptId,
       data: { label, variantType: "alias", status: "active" },
+    });
+  }
+
+  function handleDelete() {
+    if (!conceptId) return;
+    deleteMutation.mutate(conceptId, {
+      onSuccess: () => navigate("/glossary"),
     });
   }
 
@@ -128,7 +139,49 @@ export default function ConceptDetailPage() {
           >
             Edit
           </button>
+          {confirmingDelete ? (
+            <span
+              className="delete-confirm"
+              role="group"
+              aria-label="Confirm delete concept"
+            >
+              <span className="delete-confirm-text">
+                Delete this concept permanently?
+              </span>
+              <button
+                type="button"
+                className="btn-secondary btn-sm action-danger"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Confirm Delete"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn-secondary btn-sm action-danger"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              Delete
+            </button>
+          )}
         </div>
+      )}
+
+      {deleteMutation.isError && (
+        <p className="api-validation-error" role="alert">
+          {extractErrorMessage(deleteMutation.error) ||
+            "Failed to delete concept"}
+        </p>
       )}
 
       <VariantList
