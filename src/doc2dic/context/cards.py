@@ -46,6 +46,7 @@ class ConceptCard:
     status: str
     variants: VariantGroups
     source_document: str | None = None
+    physical_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
