@@ -74,6 +74,11 @@ class Concept(BaseModel):
     examples: tuple[str, ...] = Field(default_factory=tuple)
     owner: str | None = None
     source_document: str | None = Field(default=None, max_length=512)
+    physical_name: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=80,
+    )
 
 
 class TermVariant(BaseModel):
