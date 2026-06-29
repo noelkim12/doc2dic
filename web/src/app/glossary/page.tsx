@@ -61,9 +61,14 @@ export default function GlossaryPage() {
         <section className="create-section" aria-label="Create concept">
           <ConceptForm
             onSubmit={(data) => {
-              void createMutation.mutateAsync(
-                data as Parameters<NonNullable<typeof createMutation.mutate>>[0],
-              );
+              void createMutation.mutateAsync({
+                primaryTerm: data.primaryTerm,
+                definition: data.definition,
+                termType: data.termType,
+                status: data.status,
+                tags: [...data.tags],
+                physicalName: data.physicalName.trim() || undefined,
+              });
             }}
             isSubmitting={createMutation.isPending}
             error={mutationApiError(createMutation.error)}

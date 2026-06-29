@@ -35,6 +35,7 @@ export default function ConceptDetailPage() {
     termType: TermType;
     status: Concept["status"];
     tags: readonly string[];
+    physicalName: string;
   }) {
     if (!conceptId) return;
     await patchMutation.mutateAsync({
@@ -45,6 +46,7 @@ export default function ConceptDetailPage() {
         termType: data.termType,
         status: data.status,
         tags: [...data.tags],
+        physicalName: data.physicalName.trim() || undefined,
       },
     });
     setEditing(false);
@@ -110,6 +112,13 @@ export default function ConceptDetailPage() {
                 <span key={t} className="tag-pill">{t}</span>
               ))}
             </div>
+          </div>
+        )}
+
+        {concept.physicalName && (
+          <div className="physical-name-block">
+            <h2 className="section-label">Physical Name (물리명)</h2>
+            <code className="physical-name-value">{concept.physicalName}</code>
           </div>
         )}
       </section>

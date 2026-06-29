@@ -256,6 +256,29 @@ describe("ConceptForm", () => {
   });
 });
 
+/* ── ConceptForm physical name ── */
+
+describe("ConceptForm physical name", () => {
+  it("renders a Physical Name input", () => {
+    renderWithProviders(<ConceptForm onSubmit={() => {}} />);
+    expect(screen.getByLabelText(/physical name/i)).toBeInTheDocument();
+  });
+
+  it("pre-fills physical name when editing", () => {
+    const concept: Concept = { ...MOCK_CONCEPTS[0]!, physicalName: "stamina" };
+    renderWithProviders(<ConceptForm concept={concept} onSubmit={() => {}} />);
+    expect(screen.getByLabelText(/physical name/i)).toHaveValue("stamina");
+  });
+});
+
+describe("ConceptDetailPage physical name", () => {
+  it("shows the physical name when present", async () => {
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0]!, physicalName: "stamina" });
+    renderDetailRoute("c_1");
+    expect(await screen.findByText("stamina")).toBeInTheDocument();
+  });
+});
+
 /* ── VariantList ── */
 
 describe("VariantList", () => {

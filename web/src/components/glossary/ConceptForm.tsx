@@ -9,6 +9,7 @@ interface FormData {
   termType: TermType;
   status: Concept["status"];
   tags: readonly string[];
+  physicalName: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -17,6 +18,7 @@ const EMPTY_FORM: FormData = {
   termType: "unknown" as TermType,
   status: "active",
   tags: [],
+  physicalName: "",
 };
 
 function formFromConcept(c: Concept): FormData {
@@ -26,6 +28,7 @@ function formFromConcept(c: Concept): FormData {
     termType: c.termType,
     status: c.status,
     tags: [...c.tags],
+    physicalName: c.physicalName ?? "",
   };
 }
 
@@ -200,6 +203,21 @@ export default function ConceptForm({
                 form.tags.filter((t) => t !== tag),
               )
             }
+          />
+        </div>
+
+        <div className="field-group">
+          <label htmlFor={`${groupId}-physical`} className="field-label">
+            Physical Name (물리명)
+          </label>
+          <input
+            id={`${groupId}-physical`}
+            className="field-input"
+            type="text"
+            value={form.physicalName}
+            onChange={(e) => update("physicalName", e.target.value)}
+            placeholder="e.g. hp"
+            autoComplete="off"
           />
         </div>
 
