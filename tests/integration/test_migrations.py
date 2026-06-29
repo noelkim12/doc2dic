@@ -1,5 +1,6 @@
-﻿from pathlib import Path
-from typing import TYPE_CHECKING, cast
+﻿import sqlite3
+from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -10,10 +11,6 @@ from doc2dic.storage.migrations import (
     migrate_database,
 )
 from doc2dic.storage.sqlite_rows import int_cell, require_row, text_cell
-
-if TYPE_CHECKING:
-    import sqlite3
-
 
 SEARCH_TABLES = {
     "search_index_metadata",
@@ -54,6 +51,8 @@ def _create_v1_database(db_path: Path) -> None:
         _ = connection.execute("drop table if exists issue_search_fts")
         _ = connection.execute("drop table if exists evidence_search_fts")
         _ = connection.execute("alter table concepts drop column source_document")
+        _ = connection.execute("drop index if exists idx_concepts_physical_name")
+        _ = connection.execute("alter table concepts drop column physical_name")
         connection.commit()
 
 
@@ -64,6 +63,8 @@ def _create_v2_database(db_path: Path) -> None:
         _ = connection.execute("drop table if exists issue_search_fts")
         _ = connection.execute("drop table if exists evidence_search_fts")
         _ = connection.execute("alter table concepts drop column source_document")
+        _ = connection.execute("drop index if exists idx_concepts_physical_name")
+        _ = connection.execute("alter table concepts drop column physical_name")
         connection.commit()
 
 
@@ -90,7 +91,7 @@ def test_migrations_when_run_twice_are_idempotent_and_enable_wal(
         )
         settings_count = int_cell(require_row(settings_row), "settings_count")
 
-    assert first.applied_versions == (1, 2, 3, 4)
+    assert first.applied_versions == (1, 2, 3, 4, 5)
     assert second.applied_versions == ()
     assert {
         "concepts",
@@ -130,9 +131,9 @@ def test_migrations_when_fresh_database_created_apply_latest_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 4
-    assert result.applied_versions == (1, 2, 3, 4)
-    assert versions == [1, 2, 3, 4]
+    assert result.current_version == 5
+    assert result.applied_versions == (1, 2, 3, 4, 5)
+    assert versions == [1, 2, 3, 4, 5]
     assert SEARCH_TABLES.issubset(tables)
 
 
@@ -148,9 +149,9 @@ def test_migrations_when_v1_database_exists_upgrade_to_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 4
-    assert result.applied_versions == (2, 3, 4)
-    assert versions == [1, 2, 3, 4]
+    assert result.current_version == 5
+    assert result.applied_versions == (2, 3, 4, 5)
+    assert versions == [1, 2, 3, 4, 5]
     assert SEARCH_TABLES.issubset(tables)
 
 
@@ -166,9 +167,9 @@ def test_migrations_when_v2_database_exists_upgrade_to_issue_search_schema(
         tables = _table_names(connection)
         versions = _migration_versions(connection)
 
-    assert result.current_version == 4
-    assert result.applied_versions == (3, 4)
-    assert versions == [1, 2, 3, 4]
+    assert result.current_version == 5
+    assert result.applied_versions == (3, 4, 5)
+    assert versions == [1, 2, 3, 4, 5]
     assert SEARCH_TABLES.issubset(tables)
 
 
@@ -204,7 +205,7 @@ def test_migrations_when_v2_database_exists_upgrade_adds_source_document(
     with open_database(db_path) as connection:
         columns = _concept_columns(connection)
 
-    assert result.current_version == 4
+    assert result.current_version == 5
     assert "source_document" in columns
 
 
@@ -223,7 +224,7 @@ def test_open_database_upgrades_existing_old_schema_on_access(tmp_path: Path) ->
         versions = _migration_versions(connection)
 
     assert "source_document" in columns
-    assert versions == [1, 2, 3, 4]
+    assert versions == [1, 2, 3, 4, 5]
 
 
 def test_open_database_does_not_create_a_missing_project_schema(tmp_path: Path) -> None:
@@ -268,6 +269,35 @@ def test_migrations_when_database_is_newer_raise_state_error(tmp_path: Path) -> 
 
     with pytest.raises(MigrationStateError, match="newer than this application"):
         _ = migrate_database(db_path)
+
+
+def test_migration_adds_physical_name_column(tmp_path: Path) -> None:
+    result = migrate_database(tmp_path / "glossary.sqlite3")
+    assert result.current_version == 5
+
+    with sqlite3.connect(tmp_path / "glossary.sqlite3") as connection:
+        cols = {row[1] for row in connection.execute("pragma table_info(concepts)")}
+    assert "physical_name" in cols
+
+
+def test_physical_name_unique_is_case_insensitive(tmp_path: Path) -> None:
+    migrate_database(tmp_path / "glossary.sqlite3")
+    with sqlite3.connect(tmp_path / "glossary.sqlite3") as connection:
+        connection.execute(
+            "insert into concepts(id, primary_term, definition, term_type, status, "
+            "tags_json, variants_json, non_goals_json, examples_json, created_at, "
+            "updated_at, physical_name) values "
+            "('concept_a','체력','def','stat','active','[]','[]','[]','[]',"
+            "'2026-06-29T00:00:00Z','2026-06-29T00:00:00Z','hp')",
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "insert into concepts(id, primary_term, definition, term_type, status, "
+                "tags_json, variants_json, non_goals_json, examples_json, created_at, "
+                "updated_at, physical_name) values "
+                "('concept_b','생명','def','stat','active','[]','[]','[]','[]',"
+                "'2026-06-29T00:00:00Z','2026-06-29T00:00:00Z','HP')",
+            )
 
 
 def test_initialize_project_storage_when_called_creates_project_database(

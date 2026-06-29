@@ -14,7 +14,7 @@ from doc2dic.storage.sqlite_rows import (
     text_cell,
 )
 
-LATEST_SCHEMA_VERSION: Final = 4
+LATEST_SCHEMA_VERSION: Final = 5
 MANAGED_TABLES: Final = frozenset(
     {
         "concepts",
@@ -82,6 +82,9 @@ MIGRATIONS: Final = (
     MigrationDefinition(2, "search_schema", "search_schema.sql"),
     MigrationDefinition(3, "issue_search_schema", "issue_search_schema.sql"),
     MigrationDefinition(4, "concept_source_schema", "concept_source_schema.sql"),
+    MigrationDefinition(
+        5, "concept_physical_name_schema", "concept_physical_name_schema.sql"
+    ),
 )
 
 
