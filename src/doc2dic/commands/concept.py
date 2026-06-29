@@ -54,10 +54,11 @@ def show_concept(
     typer.echo(f"Status: {concept_item.status.value}")
     typer.echo(f"Tags: {', '.join(concept_item.tags)}")
     typer.echo(f"Source: {concept_item.source_document or '(none)'}")
+    typer.echo(f"Physical name: {concept_item.physical_name or '(none)'}")
 
 
 @app.command("add")
-def add_concept(
+def add_concept(  # noqa: PLR0913
     primary_term: Annotated[str, typer.Argument(help="Preferred concept label.")],
     definition: Annotated[str, typer.Option("--definition", "-d")],
     term_type: Annotated[
@@ -75,6 +76,10 @@ def add_concept(
             help="Source document this term is defined in (출처).",
         ),
     ] = None,
+    physical: Annotated[
+        str | None,
+        typer.Option("--physical", help="Canonical code identifier (물리명), e.g. hp."),
+    ] = None,
 ) -> None:
     """Add a concept and its primary variant."""
     with glossary_service() as service:
@@ -85,13 +90,14 @@ def add_concept(
                 term_type=term_type,
                 tags=tuple(tag or ()),
                 source_document=source,
+                physical_name=physical,
             ),
         )
     typer.echo(f"Created concept: {concept_item.id}")
 
 
 @app.command("edit")
-def edit_concept(
+def edit_concept(  # noqa: PLR0913
     concept_id: Annotated[str, typer.Argument(help="Concept id.")],
     primary_term: Annotated[str | None, typer.Option("--primary-term")] = None,
     definition: Annotated[str | None, typer.Option("--definition", "-d")] = None,
@@ -99,7 +105,14 @@ def edit_concept(
     tag: Annotated[list[str] | None, typer.Option("--tag")] = None,
     source: Annotated[
         str | None,
-        typer.Option("--source", help="Source document this term is defined in (출처)."),
+        typer.Option(
+            "--source",
+            help="Source document this term is defined in (출처).",
+        ),
+    ] = None,
+    physical: Annotated[
+        str | None,
+        typer.Option("--physical", help="Canonical code identifier (물리명), e.g. hp."),
     ] = None,
 ) -> None:
     """Edit concept fields."""
@@ -112,6 +125,7 @@ def edit_concept(
                 term_type=term_type,
                 tags=None if tag is None else tuple(tag),
                 source_document=source,
+                physical_name=physical,
             ),
         )
     typer.echo(f"Updated concept: {concept_item.id}")

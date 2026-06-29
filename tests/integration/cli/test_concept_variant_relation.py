@@ -137,6 +137,31 @@ def test_relation_command_when_same_source_and_target_returns_concise_error(
         assert _relation_count(connection) == 0
 
 
+def test_concept_add_with_physical_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
+
+    runner.invoke(app, ["init"])
+    add = runner.invoke(
+        app,
+        [
+            "concept", "add", "체력",
+            "-d", "생명 수치",
+            "--type", "stat",
+            "--physical", "hp",
+        ],
+    )
+    assert add.exit_code == 0
+    concept_id = add.stdout.strip().split()[-1]
+
+    show = runner.invoke(app, ["concept", "show", concept_id])
+    assert "hp" in show.stdout
+
+
 def _relation_count(connection: "sqlite3.Connection") -> int:
     return _table_count(connection, "concept_relations")
 
