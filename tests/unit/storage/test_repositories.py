@@ -1,5 +1,8 @@
-﻿from pathlib import Path
-from typing import TYPE_CHECKING, cast
+﻿import sqlite3
+from pathlib import Path
+from typing import cast
+
+import pytest
 
 from doc2dic.domain import (
     Concept,
@@ -24,9 +27,6 @@ from doc2dic.storage.repositories.concepts import ConceptRepository
 from doc2dic.storage.repositories.documents import DocumentRepository
 from doc2dic.storage.repositories.issues import IssueRepository
 from doc2dic.storage.sqlite_rows import require_row, text_cell
-
-if TYPE_CHECKING:
-    import sqlite3
 
 
 def test_concept_repository_when_upserting_concept_returns_canonical_json(
@@ -184,3 +184,31 @@ def test_issue_repository_when_upserting_issue_reads_evidence(
         loaded = repository.get_issue("issue_stamina")
 
     assert loaded == issue
+
+
+@pytest.fixture
+def connection(tmp_path: Path) -> sqlite3.Connection:
+    db_path = tmp_path / "glossary.sqlite3"
+    _ = migrate_database(db_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def test_concept_physical_name_round_trips(connection: sqlite3.Connection) -> None:
+    repo = ConceptRepository(connection)
+    concept = Concept(
+        id="concept_hp",
+        primary_term="체력",
+        definition="캐릭터의 생명 수치",
+        term_type=ConceptTermType.STAT,
+        status=ConceptStatus.ACTIVE,
+        created_at="2026-06-29T00:00:00Z",
+        updated_at="2026-06-29T00:00:00Z",
+        physical_name="hp",
+    )
+    repo.upsert_concept(concept)
+
+    loaded = repo.get_concept("concept_hp")
+    assert loaded is not None
+    assert loaded.physical_name == "hp"
