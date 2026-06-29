@@ -68,3 +68,62 @@ def status_guidance(project_root: Path, db_path: Path) -> str:
             f"- State: {state}",
         ),
     )
+
+
+def duplicate_concept_guidance(detail: str) -> str:
+    """Return guidance for a duplicate term or physical name conflict."""
+    return "\n".join(
+        (
+            "# doc2dic MCP guidance",
+            "",
+            f"The mutation was rejected as a duplicate: {detail}.",
+            "",
+            "## What to do",
+            "- Run `doc2dic_explore` to find the existing concept.",
+            "- Pick a different term/physical name, or update the existing concept.",
+        ),
+    )
+
+
+def concept_not_found_guidance(concept_id: str) -> str:
+    """Return guidance for a missing concept id on update/delete."""
+    return "\n".join(
+        (
+            "# doc2dic MCP guidance",
+            "",
+            f"Concept `{concept_id}` was not found.",
+            "",
+            "## What to do",
+            "- Run `doc2dic_explore` to confirm the concept id.",
+        ),
+    )
+
+
+def invalid_mutation_input_guidance(detail: str) -> str:
+    """Return guidance for input that failed schema validation."""
+    return "\n".join(
+        (
+            "# doc2dic MCP guidance",
+            "",
+            f"The request was rejected as invalid input: {detail}.",
+            "",
+            "## What to do",
+            "- physical_name must match `^[A-Za-z_][A-Za-z0-9_]*$` (max 80).",
+            "- primary_term: 1-160 chars; definition: 1-2000 chars.",
+        ),
+    )
+
+
+def delete_not_confirmed_guidance(concept_id: str) -> str:
+    """Return guidance when a delete is requested without confirmation."""
+    return "\n".join(
+        (
+            "# doc2dic MCP guidance",
+            "",
+            f"Delete of `{concept_id}` was not performed.",
+            "",
+            "## What to do",
+            "- This is a permanent cascade delete of variants, tags, and relations.",
+            "- Re-call with `confirm=true` to proceed.",
+        ),
+    )
