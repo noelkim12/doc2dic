@@ -33,6 +33,10 @@
 - Modify: `src/doc2dic/server/routes_concepts.py` — request bodies, payload, route wiring.
 - Modify: `contracts/schemas/concept.schema.json` — declare optional `physicalName`.
 - Modify: `src/doc2dic/commands/concept.py` — `--physical` option on `add`/`edit`, display in `show`.
+- Modify: `web/src/lib/types.ts` — `physicalName?` on `Concept`/`CreateConceptPayload`/`PatchConceptPayload`.
+- Modify: `web/src/components/glossary/ConceptForm.tsx` — form field + state.
+- Modify: `web/src/app/glossary/page.tsx` — create submit mapping (empty → undefined).
+- Modify: `web/src/app/glossary/[conceptId]/page.tsx` — edit submit mapping + detail display.
 
 Tests touched: `tests/integration/test_migrations.py`, `tests/unit/domain/test_concept_physical_name.py` (new), `tests/unit/storage/test_repositories.py`, `tests/unit/services/test_glossary_service.py`, `tests/integration/server/test_concepts_api.py`, `tests/integration/cli/test_concept_variant_relation.py`.
 
@@ -755,12 +759,185 @@ git commit -m "feat(cli): manage concept physical_name via add/edit/show"
 
 ---
 
+### Task 7: Frontend — expose `physicalName` end-to-end in the web UI
+
+**Files:**
+- Modify: `web/src/lib/types.ts` (`Concept`, `CreateConceptPayload`, `PatchConceptPayload`)
+- Modify: `web/src/components/glossary/ConceptForm.tsx` (`FormData`, `EMPTY_FORM`, `formFromConcept`, new input)
+- Modify: `web/src/app/glossary/page.tsx` (create submit mapping)
+- Modify: `web/src/app/glossary/[conceptId]/page.tsx` (`handleUpdate` + detail display)
+- Test: `web/tests/glossary.test.tsx`
+
+**Stack:** React 19 + TypeScript (strict, `noUncheckedIndexedAccess`), Vite, TanStack Query, Vitest + Testing Library. The web app talks to the API added in Task 5; `physicalName` is the FIRST optional concept field wired through the FE (`source_document` was never surfaced).
+
+**Interfaces:**
+- Consumes: the API `physicalName` field (camelCase) added in Task 5 — `ConceptPayload.physicalName`, accepted on create/patch bodies.
+- Produces: `Concept.physicalName?`, `CreateConceptPayload.physicalName?`, `PatchConceptPayload.physicalName?` in the FE type layer.
+
+**CRITICAL correctness rule:** the backend pattern rejects empty string. The form holds `physicalName` as a controlled `string` (`""` when blank), so BOTH submit paths MUST convert `"" → undefined` before sending (`data.physicalName.trim() || undefined`); sending `""` causes a 422.
+
+**Test command:** discover the FE test/typecheck scripts from `web/package.json` (Vitest). Run the web tests in run mode (e.g. `cd web && npm run test -- --run`, or the bun/script equivalent the repo uses) and the typecheck/build script. Do NOT use the Python `.venv` here.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `web/tests/glossary.test.tsx`, add a new describe block (place it near the existing `ConceptForm` tests; reuse the file's `renderWithProviders`, `renderDetailRoute`, `MOCK_CONCEPTS`, and `mockGetConcept`). Match the file's existing convention for indexing `MOCK_CONCEPTS` under `noUncheckedIndexedAccess`:
+
+```tsx
+describe("ConceptForm physical name", () => {
+  it("renders a Physical Name input", () => {
+    renderWithProviders(<ConceptForm onSubmit={() => {}} />);
+    expect(screen.getByLabelText(/physical name/i)).toBeInTheDocument();
+  });
+
+  it("pre-fills physical name when editing", () => {
+    const concept: Concept = { ...MOCK_CONCEPTS[0]!, physicalName: "stamina" };
+    renderWithProviders(<ConceptForm concept={concept} onSubmit={() => {}} />);
+    expect(screen.getByLabelText(/physical name/i)).toHaveValue("stamina");
+  });
+});
+
+describe("ConceptDetailPage physical name", () => {
+  it("shows the physical name when present", async () => {
+    mockGetConcept.mockResolvedValue({ ...MOCK_CONCEPTS[0]!, physicalName: "stamina" });
+    renderDetailRoute("c_1");
+    expect(await screen.findByText("stamina")).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run the FE test command (e.g. `cd web && npm run test -- --run glossary`).
+Expected: FAIL — `getByLabelText(/physical name/i)` finds nothing; `physicalName` not on `Concept` type (typecheck error).
+
+- [ ] **Step 3a: Extend the TypeScript types**
+
+In `web/src/lib/types.ts`:
+
+`Concept` (after `updatedAt`, line 54):
+
+```typescript
+  readonly physicalName?: string;
+```
+
+`CreateConceptPayload` (after `tags`, line 158):
+
+```typescript
+  readonly physicalName?: string;
+```
+
+`PatchConceptPayload` (after `tags`, line 166):
+
+```typescript
+  readonly physicalName?: string;
+```
+
+- [ ] **Step 3b: Add the form field**
+
+In `web/src/components/glossary/ConceptForm.tsx`:
+
+Add to `FormData` (after `tags`, line 11):
+
+```typescript
+  physicalName: string;
+```
+
+Add to `EMPTY_FORM` (line 19):
+
+```typescript
+  physicalName: "",
+```
+
+Add to `formFromConcept` return (line 28):
+
+```typescript
+    physicalName: c.physicalName ?? "",
+```
+
+Add a new field group after the Tags `field-group` (after line 204, before the `{apiDetail && ...}` block):
+
+```tsx
+        <div className="field-group">
+          <label htmlFor={`${groupId}-physical`} className="field-label">
+            Physical Name (물리명)
+          </label>
+          <input
+            id={`${groupId}-physical`}
+            className="field-input"
+            type="text"
+            value={form.physicalName}
+            onChange={(e) => update("physicalName", e.target.value)}
+            placeholder="e.g. hp"
+            autoComplete="off"
+          />
+        </div>
+```
+
+- [ ] **Step 3c: Map physicalName on the create path (drop empty → undefined)**
+
+In `web/src/app/glossary/page.tsx`, replace the blind-cast `onSubmit` (lines ~64-69) with an explicit payload that omits empty `physicalName`:
+
+```tsx
+            onSubmit={(data) => {
+              void createMutation.mutateAsync({
+                primaryTerm: data.primaryTerm,
+                definition: data.definition,
+                termType: data.termType,
+                status: data.status,
+                tags: [...data.tags],
+                physicalName: data.physicalName.trim() || undefined,
+              });
+            }}
+```
+
+- [ ] **Step 3d: Map physicalName on the edit path + display it**
+
+In `web/src/app/glossary/[conceptId]/page.tsx`:
+
+Add to the `handleUpdate` parameter type (after `tags`, line 37):
+
+```tsx
+    physicalName: string;
+```
+
+Add to the `patchMutation.mutateAsync` data object (after `tags`, line 47):
+
+```tsx
+        physicalName: data.physicalName.trim() || undefined,
+```
+
+Add a display block inside `concept-detail-body`, after the tags block (after line 114), mirroring the tags-block conditional:
+
+```tsx
+        {concept.physicalName && (
+          <div className="physical-name-block">
+            <h2 className="section-label">Physical Name (물리명)</h2>
+            <code className="physical-name-value">{concept.physicalName}</code>
+          </div>
+        )}
+```
+
+- [ ] **Step 4: Run tests + typecheck to verify they pass**
+
+Run the FE test command and the typecheck/build script from `web/package.json`.
+Expected: PASS — new tests green, no TypeScript errors, existing glossary tests still pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/src/lib/types.ts web/src/components/glossary/ConceptForm.tsx web/src/app/glossary/page.tsx "web/src/app/glossary/[conceptId]/page.tsx" web/tests/glossary.test.tsx
+git commit -m "feat(web): manage and display concept physicalName"
+```
+
+---
+
 ## Notes & deferred work (Plan 2)
 
 - **Code-surface checking** (scan source files → tokenize identifiers → match against `physical_name` and forbidden code identifiers → raise `term_issues`) is a separate subsystem and a separate plan. It introduces new file-type handling and identifier tokenization.
 - **Forbidden/legacy code identifiers** via a new `TermVariantType.PHYSICAL` value are deferred to Plan 2, where they gain a consumer (the code scanner). Adding the enum value now would be dead code (YAGNI).
 - **Casing/composition generation** (`hp` → `maxHp`/`max_hp`, compounds like 최대 체력 → `max_hp`) is explicitly out of scope; `physical_name` stores one verbatim canonical string in v1.
 - **Graphify export / search index**: `physical_name` is not surfaced to the graph projection or FTS in this plan. Add only if a consumer needs it.
+- **FE glossary table column / search-result hint**: `physicalName` is shown in the concept detail panel and editable in the form (Task 7), but NOT added as a `ConceptTable` column or a `SimilarConceptList` hint. Add later only if users want it at-a-glance in lists.
 
 ## Self-Review
 
