@@ -7,16 +7,22 @@ from typing import Protocol, cast
 from doc2dic.mcp.instructions import SERVER_INSTRUCTIONS, SERVER_NAME
 from doc2dic.mcp.registry import (
     ANALYZE_TOOL_NAME,
+    CREATE_CONCEPT_TOOL_NAME,
     DEFAULT_TOOL_NAME,
+    DELETE_CONCEPT_TOOL_NAME,
     STATUS_TOOL_NAME,
     SUGGEST_TAGS_TOOL_NAME,
+    UPDATE_CONCEPT_TOOL_NAME,
     active_tool_names,
 )
 from doc2dic.mcp.tools import (
     run_doc2dic_analyze,
+    run_doc2dic_create_concept,
+    run_doc2dic_delete_concept,
     run_doc2dic_explore,
     run_doc2dic_status,
     run_doc2dic_suggest_tags,
+    run_doc2dic_update_concept,
 )
 
 
@@ -82,7 +88,7 @@ def build_doc2dic_mcp_server(
     return cast("Doc2DicMcpServer", cast("object", server))
 
 
-def _register_enabled_tools(
+def _register_enabled_tools(  # noqa: C901
     server: ToolRegisteringServer,
     default_project_root: Path,
 ) -> None:
@@ -127,6 +133,83 @@ def _register_enabled_tools(
             return run_doc2dic_suggest_tags(query, project_path or default_project_root)
 
         _ = doc2dic_suggest_tags
+
+    if CREATE_CONCEPT_TOOL_NAME in enabled_names:
+
+        @server.tool(
+            name=CREATE_CONCEPT_TOOL_NAME,
+            description="Create a glossary concept (direct write).",
+        )
+        def doc2dic_create_concept(  # noqa: PLR0913
+            primary_term: str,
+            definition: str,
+            term_type: str = "unknown",
+            tags: list[str] | None = None,
+            physical_name: str | None = None,
+            source_document: str | None = None,
+            project_path: str | None = None,
+        ) -> str:
+            return run_doc2dic_create_concept(
+                primary_term,
+                definition,
+                term_type=term_type,
+                tags=tuple(tags) if tags is not None else None,
+                physical_name=physical_name,
+                source_document=source_document,
+                project_path=project_path or default_project_root,
+            )
+
+        _ = doc2dic_create_concept
+
+    if UPDATE_CONCEPT_TOOL_NAME in enabled_names:
+
+        @server.tool(
+            name=UPDATE_CONCEPT_TOOL_NAME,
+            description="Update a glossary concept (direct write).",
+        )
+        def doc2dic_update_concept(  # noqa: PLR0913
+            concept_id: str,
+            primary_term: str | None = None,
+            definition: str | None = None,
+            term_type: str | None = None,
+            status: str | None = None,
+            tags: list[str] | None = None,
+            physical_name: str | None = None,
+            source_document: str | None = None,
+            project_path: str | None = None,
+        ) -> str:
+            return run_doc2dic_update_concept(
+                concept_id,
+                primary_term=primary_term,
+                definition=definition,
+                term_type=term_type,
+                status=status,
+                tags=tuple(tags) if tags is not None else None,
+                physical_name=physical_name,
+                source_document=source_document,
+                project_path=project_path or default_project_root,
+            )
+
+        _ = doc2dic_update_concept
+
+    if DELETE_CONCEPT_TOOL_NAME in enabled_names:
+
+        @server.tool(
+            name=DELETE_CONCEPT_TOOL_NAME,
+            description="Delete a glossary concept and its cascade (direct write).",
+        )
+        def doc2dic_delete_concept(
+            concept_id: str,
+            confirm: bool = False,
+            project_path: str | None = None,
+        ) -> str:
+            return run_doc2dic_delete_concept(
+                concept_id,
+                confirm=confirm,
+                project_path=project_path or default_project_root,
+            )
+
+        _ = doc2dic_delete_concept
 
     if STATUS_TOOL_NAME in enabled_names:
 
