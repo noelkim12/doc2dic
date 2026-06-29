@@ -45,6 +45,12 @@ class ConceptCreateBody(BaseModel):
         alias="termType",
     )
     tags: tuple[str, ...] = ()
+    physical_name: str | None = Field(
+        default=None,
+        alias="physicalName",
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=80,
+    )
 
 
 class ConceptPatchBody(BaseModel):
@@ -62,6 +68,12 @@ class ConceptPatchBody(BaseModel):
     term_type: ConceptTermType | None = Field(default=None, alias="termType")
     status: ConceptStatus | None = None
     tags: tuple[str, ...] | None = None
+    physical_name: str | None = Field(
+        default=None,
+        alias="physicalName",
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
+        max_length=80,
+    )
 
 
 class VariantCreateBody(BaseModel):
@@ -88,6 +100,7 @@ class ConceptPayload(BaseModel):
     definition: str
     term_type: str = Field(alias="termType")
     status: str
+    physical_name: str | None = Field(default=None, alias="physicalName")
     tags: tuple[str, ...]
     variants: tuple[str, ...]
     created_at: str = Field(alias="createdAt")
@@ -139,6 +152,7 @@ def create_concept(
                 definition=body.definition,
                 term_type=body.term_type,
                 tags=body.tags,
+                physical_name=body.physical_name,
             ),
         )
     except DuplicateGlossaryItemError as error:
@@ -176,6 +190,7 @@ def patch_concept(
                 term_type=body.term_type,
                 status=body.status,
                 tags=body.tags,
+                physical_name=body.physical_name,
             ),
         )
     except GlossaryItemNotFoundError as error:
@@ -258,6 +273,7 @@ def _concept_payload(concept: Concept) -> ConceptPayload:
         definition=concept.definition,
         termType=concept.term_type.value,
         status=concept.status.value,
+        physicalName=concept.physical_name,
         tags=concept.tags,
         variants=concept.variant_ids,
         createdAt=concept.created_at,

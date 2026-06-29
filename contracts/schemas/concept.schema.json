@@ -11,6 +11,7 @@
     "definition": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "termType": { "type": "string", "enum": ["mechanic", "resource", "state", "action", "stat", "entity", "rule", "ui-label", "lore", "unknown"] },
     "status": { "type": "string", "enum": ["active", "deprecated", "forbidden"] },
+    "physicalName": { "type": ["string", "null"], "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 80 },
     "tags": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "uniqueItems": true },
     "variants": { "type": "array", "items": { "type": "string", "pattern": "^variant_[A-Za-z0-9_-]+$" }, "uniqueItems": true },
     "createdAt": { "type": "string", "format": "date-time" },
