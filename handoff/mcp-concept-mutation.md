@@ -19,7 +19,7 @@ MCP 서버에 **glossary concept 직접 쓰기 도구 3종**(`doc2dic_create_con
 | MCP 도구 핸들러 | `src/doc2dic/mcp/tools.py` | `run_doc2dic_create_concept`, `run_doc2dic_update_concept`, `run_doc2dic_delete_concept` (GlossaryService 직접 호출) |
 | MCP 레지스트리 | `src/doc2dic/mcp/registry.py` | 세 도구 `enabled_by_default=True`로 등록 |
 | MCP 서버 | `src/doc2dic/mcp/server.py`, `src/doc2dic/mcp/instructions.py` | 세 도구 라우팅 추가, 서버 instructions 재작성 (기존 "Do not mutate the glossary automatically" 라인 제거) |
-| 테스트 | `tests/mcp/test_tools.py`, `tests/mcp/test_registry.py`, `tests/e2e/test_mcp_sample_flow.py` | 뮤테이션 도구 단위·E2E 검증 추가 |
+| 테스트 | `tests/mcp/test_mutation_schemas.py`, `tests/mcp/test_mutation_guidance.py`, `tests/mcp/test_mutation_tools.py`, `tests/mcp/test_mutation_server.py` (추가); `tests/mcp/test_doc2dic_explore.py`, `tests/context/test_explore_context_builder.py` (수정) | 뮤테이션 도구 단위 검증 추가 |
 
 ## 검증
 - 백엔드: 281 passed, 1 skipped (기존 실패 2건 무관: `test_serve_help_exposes_mcp_and_path_options` ANSI 렌더 아티팩트, `test_contract_routes_return_501_schema_when_called` Voyage 503 미스매치)

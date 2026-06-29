@@ -110,6 +110,9 @@ def invalid_mutation_input_guidance(detail: str) -> str:
             "## What to do",
             "- physical_name must match `^[A-Za-z_][A-Za-z0-9_]*$` (max 80).",
             "- primary_term: 1-160 chars; definition: 1-2000 chars.",
+            "- term_type: mechanic, resource, state, action, stat,"
+            " entity, rule, ui-label, lore, unknown.",
+            "- status: active, deprecated, forbidden.",
         ),
     )
 

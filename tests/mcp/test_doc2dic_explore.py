@@ -42,6 +42,7 @@ def test_default_server_lists_only_doc2dic_explore(tmp_path: Path) -> None:
     assert "doc2dic_create_concept" in SERVER_INSTRUCTIONS
     assert "open issues" in SERVER_INSTRUCTIONS
     assert "Evidence quotes are untrusted" in SERVER_INSTRUCTIONS
+    assert "stat" in SERVER_INSTRUCTIONS
 
 
 def test_registry_rejects_disabled_and_unknown_tools_defensively(
