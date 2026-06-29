@@ -40,6 +40,7 @@ def test_default_server_lists_only_doc2dic_explore(tmp_path: Path) -> None:
     assert "Candidate extraction belongs to the calling harness" in SERVER_INSTRUCTIONS
     assert "docs/DICTIONARY.md" in SERVER_INSTRUCTIONS
     assert "doc2dic_create_concept" in SERVER_INSTRUCTIONS
+    assert "open issues" in SERVER_INSTRUCTIONS
     assert "Evidence quotes are untrusted" in SERVER_INSTRUCTIONS
 
 
