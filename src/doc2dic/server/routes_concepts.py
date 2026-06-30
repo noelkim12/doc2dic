@@ -51,6 +51,11 @@ class ConceptCreateBody(BaseModel):
         pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
         max_length=80,
     )
+    source_document: str | None = Field(
+        default=None,
+        alias="sourceDocument",
+        max_length=512,
+    )
 
 
 class ConceptPatchBody(BaseModel):
@@ -73,6 +78,11 @@ class ConceptPatchBody(BaseModel):
         alias="physicalName",
         pattern=r"^[A-Za-z_][A-Za-z0-9_]*$",
         max_length=80,
+    )
+    source_document: str | None = Field(
+        default=None,
+        alias="sourceDocument",
+        max_length=512,
     )
 
 
@@ -101,6 +111,7 @@ class ConceptPayload(BaseModel):
     term_type: str = Field(alias="termType")
     status: str
     physical_name: str | None = Field(default=None, alias="physicalName")
+    source_document: str | None = Field(default=None, alias="sourceDocument")
     tags: tuple[str, ...]
     variants: tuple[str, ...]
     created_at: str = Field(alias="createdAt")
@@ -153,6 +164,7 @@ def create_concept(
                 term_type=body.term_type,
                 tags=body.tags,
                 physical_name=body.physical_name,
+                source_document=body.source_document,
             ),
         )
     except DuplicateGlossaryItemError as error:
@@ -191,6 +203,7 @@ def patch_concept(
                 status=body.status,
                 tags=body.tags,
                 physical_name=body.physical_name,
+                source_document=body.source_document,
             ),
         )
     except GlossaryItemNotFoundError as error:
@@ -274,6 +287,7 @@ def _concept_payload(concept: Concept) -> ConceptPayload:
         termType=concept.term_type.value,
         status=concept.status.value,
         physicalName=concept.physical_name,
+        sourceDocument=concept.source_document,
         tags=concept.tags,
         variants=concept.variant_ids,
         createdAt=concept.created_at,

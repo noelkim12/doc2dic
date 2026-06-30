@@ -192,6 +192,41 @@ def test_create_and_get_concept_with_physical_name(
     assert fetched.json()["physicalName"] == "hp"
 
 
+def test_create_patch_and_get_concept_with_source_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DOC2DIC_EMBEDDING_PROVIDER", "mock")
+    fastapi_app = create_app(project_root=tmp_path)
+
+    created = request_app(
+        fastapi_app,
+        "post",
+        "/api/concepts",
+        {
+            "primaryTerm": "체력",
+            "definition": "생명 수치",
+            "termType": "stat",
+            "sourceDocument": "design/combat.md",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["sourceDocument"] == "design/combat.md"
+
+    concept_id = cast("dict[str, str]", created.json())["id"]
+    fetched = request_app(fastapi_app, "get", f"/api/concepts/{concept_id}")
+    assert fetched.json()["sourceDocument"] == "design/combat.md"
+
+    patched = request_app(
+        fastapi_app,
+        "patch",
+        f"/api/concepts/{concept_id}",
+        {"sourceDocument": "design/economy.md"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["sourceDocument"] == "design/economy.md"
+
+
 def _response_from_messages(messages: list[Message]) -> ApiResponse:
     status_code = 500
     body_parts: list[bytes] = []

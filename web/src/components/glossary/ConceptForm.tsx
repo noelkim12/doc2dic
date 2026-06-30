@@ -10,6 +10,7 @@ interface FormData {
   status: Concept["status"];
   tags: readonly string[];
   physicalName: string;
+  sourceDocument: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -19,6 +20,7 @@ const EMPTY_FORM: FormData = {
   status: "active",
   tags: [],
   physicalName: "",
+  sourceDocument: "",
 };
 
 function formFromConcept(c: Concept): FormData {
@@ -29,6 +31,7 @@ function formFromConcept(c: Concept): FormData {
     status: c.status,
     tags: [...c.tags],
     physicalName: c.physicalName ?? "",
+    sourceDocument: c.sourceDocument ?? "",
   };
 }
 
@@ -217,6 +220,21 @@ export default function ConceptForm({
             value={form.physicalName}
             onChange={(e) => update("physicalName", e.target.value)}
             placeholder="e.g. hp"
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="field-group">
+          <label htmlFor={`${groupId}-source`} className="field-label">
+            Source Document (출처)
+          </label>
+          <input
+            id={`${groupId}-source`}
+            className="field-input"
+            type="text"
+            value={form.sourceDocument}
+            onChange={(e) => update("sourceDocument", e.target.value)}
+            placeholder="e.g. design/combat.md"
             autoComplete="off"
           />
         </div>

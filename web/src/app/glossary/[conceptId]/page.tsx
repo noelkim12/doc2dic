@@ -36,6 +36,7 @@ export default function ConceptDetailPage() {
     status: Concept["status"];
     tags: readonly string[];
     physicalName: string;
+    sourceDocument: string;
   }) {
     if (!conceptId) return;
     await patchMutation.mutateAsync({
@@ -47,6 +48,7 @@ export default function ConceptDetailPage() {
         status: data.status,
         tags: [...data.tags],
         physicalName: data.physicalName.trim() || undefined,
+        sourceDocument: data.sourceDocument.trim() || undefined,
       },
     });
     setEditing(false);
@@ -119,6 +121,13 @@ export default function ConceptDetailPage() {
           <div className="physical-name-block">
             <h2 className="section-label">Physical Name (물리명)</h2>
             <code className="physical-name-value">{concept.physicalName}</code>
+          </div>
+        )}
+
+        {concept.sourceDocument && (
+          <div className="source-document-block">
+            <h2 className="section-label">Source Document (출처)</h2>
+            <p className="source-document-value">{concept.sourceDocument}</p>
           </div>
         )}
       </section>

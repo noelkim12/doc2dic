@@ -53,6 +53,7 @@ export type Concept = {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly physicalName?: string;
+  readonly sourceDocument?: string;
 };
 
 export type SimilarConceptMatch = {
@@ -158,6 +159,7 @@ export interface CreateConceptPayload {
   readonly status: ConceptStatus;
   readonly tags: readonly string[];
   readonly physicalName?: string;
+  readonly sourceDocument?: string;
 }
 
 export interface PatchConceptPayload {
@@ -167,6 +169,7 @@ export interface PatchConceptPayload {
   readonly status?: ConceptStatus;
   readonly tags?: readonly string[];
   readonly physicalName?: string;
+  readonly sourceDocument?: string;
 }
 
 export interface CreateVariantPayload {

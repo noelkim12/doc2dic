@@ -68,6 +68,7 @@ export default function GlossaryPage() {
                 status: data.status,
                 tags: [...data.tags],
                 physicalName: data.physicalName.trim() || undefined,
+                sourceDocument: data.sourceDocument.trim() || undefined,
               });
             }}
             isSubmitting={createMutation.isPending}
